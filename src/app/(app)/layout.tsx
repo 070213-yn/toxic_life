@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Navigation from '@/components/Navigation'
 import { AuthProvider } from '@/components/AuthProvider'
-import BackgroundProvider from '@/components/BackgroundProvider'
 
 // 認証済みユーザー用レイアウト
 // ログインしていない場合はログインページにリダイレクトする
@@ -23,8 +22,7 @@ export default async function AppLayout({
 
   return (
     <AuthProvider>
-      <BackgroundProvider />
-      <div className="flex min-h-screen relative z-10">
+      <div className="flex min-h-screen">
         <Navigation />
 
         {/* メインコンテンツ: PC時はサイドバー分の余白、モバイル時はフッター分の余白 */}

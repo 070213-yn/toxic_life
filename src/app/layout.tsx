@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Quicksand, Zen_Maru_Gothic, DM_Sans } from 'next/font/google'
 import './globals.css'
+import BackgroundProvider from '@/components/BackgroundProvider'
 
 // 見出し英字用フォント
 const quicksand = Quicksand({
@@ -40,7 +41,10 @@ export default function RootLayout({
       className={`${quicksand.variable} ${zenMaruGothic.variable} ${dmSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-[family-name:var(--font-zen-maru)]">
-        {children}
+        <BackgroundProvider />
+        <div className="relative z-10 flex-1 flex flex-col">
+          {children}
+        </div>
       </body>
     </html>
   )
