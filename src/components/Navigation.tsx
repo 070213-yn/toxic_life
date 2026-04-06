@@ -1,14 +1,34 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useRef, useCallback } from 'react'
+import { useAuth } from '@/components/AuthProvider'
+import { supabase } from '@/lib/supabase/client'
+import AvatarUpload from '@/components/AvatarUpload'
+
+// アバター表示ヘルパー
+function AvatarDisplay({ avatar, size = 40 }: { avatar: string | null; size?: number }) {
+  const isImage = avatar && (avatar.startsWith('http') || avatar.startsWith('/'))
+  return (
+    <div
+      className="rounded-full bg-primary-light/50 flex items-center justify-center overflow-hidden"
+      style={{ width: size, height: size }}
+    >
+      {isImage ? (
+        <img src={avatar} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <span style={{ fontSize: size * 0.5 }}>{avatar || '😊'}</span>
+      )}
+    </div>
+  )
+}
 
 // ナビゲーションのタブ定義
 const tabs = [
   {
     label: 'ホーム',
     href: '/',
-    // 家のアイコン
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -19,7 +39,6 @@ const tabs = [
   {
     label: '貯金',
     href: '/savings',
-    // コインのアイコン
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
@@ -31,7 +50,6 @@ const tabs = [
   {
     label: 'クエスト',
     href: '/quests',
-    // チェックリストのアイコン
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 11l3 3L22 4" />
@@ -42,7 +60,6 @@ const tabs = [
   {
     label: '下見',
     href: '/scouting',
-    // 地図ピンのアイコン
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -53,7 +70,6 @@ const tabs = [
   {
     label: 'カウントダウン',
     href: '/countdown',
-    // カレンダーのアイコン
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -68,11 +84,60 @@ const tabs = [
 
 export default function Navigation() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { profile } = useAuth()
+  const [showAvatarUpload, setShowAvatarUpload] = useState(false)
 
-  // 現在のパスに一致するかチェック（ホームは完全一致、他は前方一致）
+  // ユーザー名編集の状態管理
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [isSavingName, setIsSavingName] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
+  // ユーザー名編集を開始
+  const startEditingName = useCallback(() => {
+    setEditName(profile?.display_name ?? '')
+    setIsEditingName(true)
+    setTimeout(() => nameInputRef.current?.focus(), 50)
+  }, [profile?.display_name])
+
+  // ユーザー名を保存
+  const saveDisplayName = useCallback(async () => {
+    if (!editName.trim() || !profile) return
+    setIsSavingName(true)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: editName.trim() })
+      .eq('id', profile.id)
+    setIsSavingName(false)
+    if (error) {
+      alert('名前の保存に失敗しました: ' + error.message)
+      return
+    }
+    setIsEditingName(false)
+    window.location.reload()
+  }, [editName, profile])
+
+  // Enter で保存、Escape でキャンセル
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      saveDisplayName()
+    }
+    if (e.key === 'Escape') {
+      setIsEditingName(false)
+    }
+  }, [saveDisplayName])
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)
+  }
+
+  // ログアウト
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   return (
@@ -130,6 +195,100 @@ export default function Navigation() {
             )
           })}
         </nav>
+
+        {/* ユーザープロフィール */}
+        {profile && (
+          <div className="px-3 py-4 border-t border-primary-light/30">
+            <div className="flex items-center gap-3 px-2">
+              {/* アバターアイコン（クリックで画像アップロード） */}
+              <button
+                onClick={() => setShowAvatarUpload(true)}
+                className="shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+                title="アイコンを変更"
+              >
+                <AvatarDisplay avatar={profile.avatar_emoji} size={40} />
+              </button>
+
+              {/* 名前（インライン編集対応） */}
+              <div className="flex-1 min-w-0">
+                {isEditingName ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      maxLength={20}
+                      disabled={isSavingName}
+                      className="w-full px-1.5 py-0.5 text-sm rounded-md border border-primary/30 bg-white/80 text-text focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                    <button
+                      onClick={saveDisplayName}
+                      disabled={isSavingName || !editName.trim()}
+                      className="shrink-0 p-0.5 text-primary hover:text-primary/80 disabled:opacity-40"
+                      title="保存"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setIsEditingName(false)}
+                      disabled={isSavingName}
+                      className="shrink-0 p-0.5 text-text-sub hover:text-text disabled:opacity-40"
+                      title="キャンセル"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium text-text truncate">
+                      {profile.display_name}
+                    </p>
+                    {/* 編集ボタン（鉛筆アイコン） */}
+                    <button
+                      onClick={startEditingName}
+                      className="shrink-0 p-0.5 text-text-sub/40 hover:text-primary transition-colors"
+                      title="名前を変更"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        <path d="m15 5 4 4" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                <p className="text-[10px] text-text-sub">ログイン中</p>
+              </div>
+            </div>
+
+            {/* ログアウトボタン */}
+            <button
+              onClick={handleLogout}
+              className="mt-3 w-full px-3 py-1.5 rounded-lg text-xs text-text-sub hover:text-accent hover:bg-accent/10 transition-colors text-left"
+            >
+              ログアウト
+            </button>
+          </div>
+        )}
+
+        {/* アバターアップロードモーダル */}
+        {showAvatarUpload && profile && (
+          <AvatarUpload
+            userId={profile.id}
+            currentAvatar={profile.avatar_emoji}
+            onComplete={() => {
+              setShowAvatarUpload(false)
+              window.location.reload()
+            }}
+            onCancel={() => setShowAvatarUpload(false)}
+          />
+        )}
       </aside>
     </>
   )

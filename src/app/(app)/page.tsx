@@ -4,7 +4,6 @@ import SavingsRing from '@/components/dashboard/SavingsRing'
 import MilestoneMap from '@/components/dashboard/MilestoneMap'
 import TodoHighlight from '@/components/dashboard/TodoHighlight'
 import ActivityFeed from '@/components/dashboard/ActivityFeed'
-import AddSavingModal from '@/components/dashboard/AddSavingModal'
 import type { Milestone, Task, Saving } from '@/lib/types'
 
 // ダッシュボード（トップページ）
@@ -17,10 +16,10 @@ export default async function DashboardPage() {
   const [
     savingsResult,
     milestonesResult,
-    settingsResult,
-    frierenResult,
+    moveInResult,
     recentSavingsResult,
     recentTasksResult,
+    savingsGoalResult,
   ] = await Promise.all([
     // 貯金データ（ユーザー情報込み）
     supabase
@@ -34,18 +33,11 @@ export default async function DashboardPage() {
       .select('*, tasks(*)')
       .order('sort_order', { ascending: true }),
 
-    // 設定（引越し日など）
-    supabase
-      .from('settings')
-      .select('*')
-      .eq('key', 'general')
-      .single(),
-
-    // フリーレン3期の日付を取得
+    // 引越し日を取得
     supabase
       .from('settings')
       .select('key, value')
-      .eq('key', 'frieren_date')
+      .eq('key', 'move_in_date')
       .single(),
 
     // 直近の貯金記録（活動フィード用）
@@ -62,16 +54,23 @@ export default async function DashboardPage() {
       .eq('is_completed', true)
       .order('completed_at', { ascending: false })
       .limit(5),
+
+    // 貯金目標額を取得
+    supabase
+      .from('settings')
+      .select('key, value')
+      .eq('key', 'savings_goal')
+      .single(),
   ])
 
   const savings: Saving[] = savingsResult.data ?? []
   const milestones: Milestone[] = milestonesResult.data ?? []
 
-  // 設定値から引越し日を取得
-  const moveInDate = settingsResult.data?.value?.move_in_date as string | null ?? null
-
-  // フリーレン3期の日付を取得（value.value の形式）
-  const frierenDate = (frierenResult.data?.value as Record<string, unknown>)?.value as string | null ?? null
+  // 引越し日を取得（seed.sqlでは value が文字列、UIからは value.date の形式）
+  const moveInRaw = moveInResult.data?.value
+  const moveInDate = typeof moveInRaw === 'string'
+    ? moveInRaw.replace(/"/g, '')
+    : (moveInRaw as Record<string, unknown>)?.date as string | null ?? null
 
   // 貯金集計（しんご・あいり別）
   // profiles.display_name で振り分け
@@ -89,8 +88,11 @@ export default async function DashboardPage() {
     }
   }
 
-  // 貯金目標（設定から取得、デフォルト100万円）
-  const savingsGoal = (settingsResult.data?.value?.savings_goal as number) ?? 1000000
+  // 貯金目標（settingsテーブルから取得、なければデフォルト100万円）
+  const savingsGoalRaw = savingsGoalResult.data?.value
+  const savingsGoal = (savingsGoalRaw as Record<string, unknown>)?.amount
+    ? Number((savingsGoalRaw as Record<string, unknown>).amount)
+    : 1000000
 
   // 活動フィード用データを合成
   type Activity = {
@@ -145,7 +147,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-bg">
       {/* ヘッダー */}
       <header className="sticky top-0 z-10 bg-bg/80 backdrop-blur-md border-b border-primary-light/30">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <h1 className="text-lg font-bold text-text">
             ふたりの旅路
           </h1>
@@ -154,29 +156,29 @@ export default async function DashboardPage() {
       </header>
 
       {/* メインコンテンツ */}
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* カウントダウン */}
-        <CountdownBanner moveInDate={moveInDate} frierenDate={frierenDate} />
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* 上段: カウントダウン + 貯金プログレス + 活動フィード */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* カウントダウン */}
+          <CountdownBanner moveInDate={moveInDate} />
 
-        {/* 貯金プログレス */}
-        <SavingsRing
-          totalSavings={totalSavings}
-          shingoSavings={shingoSavings}
-          airiSavings={airiSavings}
-          goal={savingsGoal}
-        />
+          {/* 貯金プログレス */}
+          <SavingsRing
+            totalSavings={totalSavings}
+            shingoSavings={shingoSavings}
+            airiSavings={airiSavings}
+            goal={savingsGoal}
+          />
 
-        {/* 貯金記録ボタン */}
-        <AddSavingModal />
+          {/* 活動フィード */}
+          <ActivityFeed activities={recentActivities} />
+        </div>
 
-        {/* ロードマップ */}
+        {/* ロードマップ（全幅） */}
         <MilestoneMap milestones={milestones} />
 
-        {/* 今月のTODO */}
+        {/* 下段: TODO */}
         <TodoHighlight tasks={highlightTasks} />
-
-        {/* 活動フィード */}
-        <ActivityFeed activities={recentActivities} />
 
         {/* 下部の余白 */}
         <div className="h-8" />

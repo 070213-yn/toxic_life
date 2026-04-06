@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { MilestoneCard } from '@/components/quests/MilestoneCard'
+import QuestsPageClient from '@/components/quests/QuestsPageClient'
 import type { Milestone } from '@/lib/types'
 
 // マイルストーン＆タスク管理ページ（サーバーコンポーネント）
-// マイルストーン一覧をタスク含めて取得し、貯金合計も取得する
+// データ取得のみ行い、表示・フィルタリングは QuestsPageClient に委譲
 export default async function QuestsPage() {
   const supabase = await createClient()
 
@@ -32,30 +32,18 @@ export default async function QuestsPage() {
   return (
     <div className="min-h-screen bg-bg">
       {/* ヘッダー */}
-      <div className="px-4 pt-8 pb-4 text-center">
+      <div className="px-4 pt-8 pb-2 text-center">
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
           Quest Board
         </h1>
         <p className="text-text-sub text-sm mt-1">ふたりの冒険の書</p>
       </div>
 
-      {/* マイルストーン一覧 */}
-      <div className="px-4 pb-24 space-y-4 max-w-lg mx-auto">
-        {sortedMilestones.length === 0 ? (
-          <div className="text-center py-16 text-text-sub">
-            <p className="text-4xl mb-4">📜</p>
-            <p>まだクエストがありません</p>
-          </div>
-        ) : (
-          sortedMilestones.map((milestone) => (
-            <MilestoneCard
-              key={milestone.id}
-              milestone={milestone}
-              totalSavings={totalSavings}
-            />
-          ))
-        )}
-      </div>
+      {/* クライアントコンポーネント（月セレクター＋マイルストーン一覧） */}
+      <QuestsPageClient
+        milestones={sortedMilestones}
+        totalSavings={totalSavings}
+      />
     </div>
   )
 }
