@@ -8,11 +8,10 @@ import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, StandaloneSearchBox } 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import type { ScoutingArea } from '@/lib/types'
-import type { HomeLocations } from '@/app/(app)/map/page'
+import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
 
 type Props = {
-  areas: Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude'>[]
+  areas: MapArea[]
   homeLocations: HomeLocations
   pinAreaId?: string | null
   pinAreaName?: string | null
@@ -252,19 +251,26 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <p className="text-sm font-medium text-text">
+            <p className="text-sm font-medium text-text flex-1">
               <span className="font-bold">{pinAreaName || 'エリア'}</span>のピンを配置してください。地図をクリックして場所を選んでね
             </p>
-            {/* ピン位置が選択済みなら保存ボタン */}
-            {pinPos && (
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              {pinPos && (
+                <button
+                  onClick={handlePinSave}
+                  disabled={pinSaving}
+                  className="px-4 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {pinSaving ? '保存中...' : 'この場所で保存'}
+                </button>
+              )}
               <button
-                onClick={handlePinSave}
-                disabled={pinSaving}
-                className="ml-auto shrink-0 px-4 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                onClick={() => { setPinPlacing(false); setPinPos(null); onPinPlaced?.() }}
+                className="px-3 py-1.5 text-text-sub text-sm rounded-full hover:bg-white/50 transition-colors"
               >
-                {pinSaving ? '保存中...' : 'この場所で保存'}
+                キャンセル
               </button>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -346,11 +352,66 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
                   position={{ lat: area.latitude, lng: area.longitude }}
                   onCloseClick={() => setSelectedArea(null)}
                 >
-                  <div className="text-center min-w-[120px] p-1">
-                    <p className="font-bold text-sm text-gray-800 mb-2">{area.name}</p>
+                  <div className="min-w-[260px] max-w-[320px] p-1">
+                    {/* エリア名 + 訪問日 */}
+                    <p className="font-bold text-sm text-gray-800">{area.name}</p>
+                    {area.visited_date && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {new Date(area.visited_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                    )}
+
+                    {/* 写真横スクロール */}
+                    {area.scouting_photos && area.scouting_photos.length > 0 && (
+                      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+                        {area.scouting_photos.slice(0, 6).map((photo) => {
+                          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scouting-photos/${photo.storage_path}`
+                          return (
+                            <img
+                              key={photo.id}
+                              src={url}
+                              alt={photo.caption || ''}
+                              className="w-16 h-16 rounded-lg object-cover shrink-0"
+                            />
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* ユーザー別評価 */}
+                    {area.scouting_ratings && area.scouting_ratings.length > 0 && (() => {
+                      const byUser: Record<string, { name: string; emoji: string; ratings: number[] }> = {}
+                      for (const r of area.scouting_ratings) {
+                        const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+                        if (!byUser[r.user_id]) {
+                          byUser[r.user_id] = { name: p?.display_name || '?', emoji: p?.avatar_emoji || '', ratings: [] }
+                        }
+                        byUser[r.user_id].ratings.push(r.rating)
+                      }
+                      const users = Object.values(byUser)
+                      return (
+                        <div className="mt-2 space-y-1">
+                          {users.map((u, i) => {
+                            const avg = (u.ratings.reduce((a, b) => a + b, 0) / u.ratings.length).toFixed(1)
+                            const isImg = u.emoji && (u.emoji.startsWith('http') || u.emoji.startsWith('/'))
+                            return (
+                              <div key={i} className="flex items-center gap-1.5">
+                                <div className="w-4 h-4 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden shrink-0">
+                                  {isImg ? <img src={u.emoji} alt="" className="w-full h-full object-cover" /> : <span style={{ fontSize: 9 }}>{u.emoji || '👤'}</span>}
+                                </div>
+                                <span className="text-xs text-gray-600">{u.name}</span>
+                                <span className="text-xs text-yellow-500 ml-auto">★ {avg}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+
+                    {/* 下見メモへのリンク */}
                     <button
                       onClick={() => router.push(`/scouting/${area.id}`)}
-                      className="inline-block px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
+                      className="mt-2 w-full px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
                     >
                       下見メモを見る
                     </button>

@@ -1,9 +1,7 @@
 // マップページ（サーバーコンポーネント）
-// scouting_areas テーブルから全エリア、settingsテーブルから実家位置を取得
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import MapPageClient from '@/components/map/MapPageClient'
-import type { ScoutingArea } from '@/lib/types'
 
 // 実家位置の型定義
 type HomeLocation = {
@@ -17,15 +15,32 @@ export type HomeLocations = {
   airi?: HomeLocation
 }
 
+// マップ用のエリアデータ型
+export type MapArea = {
+  id: string
+  name: string
+  latitude: number | null
+  longitude: number | null
+  nearest_station: string | null
+  visited_date: string | null
+  scouting_photos: { id: string; storage_path: string; caption: string | null }[]
+  scouting_ratings: { user_id: string; category: string; rating: number; profiles: { display_name: string; avatar_emoji: string } | { display_name: string; avatar_emoji: string }[] | null }[]
+}
+
 export default async function MapPage() {
   const supabase = await createClient()
 
-  // 下見エリア一覧を取得（位置情報の有無にかかわらず全エリア取得）
+  // 下見エリア一覧（写真・評価含む）
   const { data: areas } = await supabase
     .from('scouting_areas')
-    .select('id, name, latitude, longitude, nearest_station')
+    .select(`
+      id, name, latitude, longitude, nearest_station, visited_date,
+      scouting_photos(id, storage_path, caption),
+      scouting_ratings(user_id, category, rating, profiles:user_id(display_name, avatar_emoji))
+    `)
+    .order('visited_date', { ascending: false })
 
-  // 実家の位置情報をsettingsテーブルから取得
+  // 実家の位置情報
   const { data: setting } = await supabase
     .from('settings')
     .select('value')
@@ -41,7 +56,7 @@ export default async function MapPage() {
       </div>
     }>
       <MapPageClient
-        areas={(areas as Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude' | 'nearest_station'>[]) || []}
+        areas={(areas as MapArea[]) || []}
         homeLocations={homeLocations}
       />
     </Suspense>

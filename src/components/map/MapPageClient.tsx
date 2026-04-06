@@ -1,69 +1,77 @@
 'use client'
 
-// マップページのメインクライアントコンポーネント
-// ピン配置モード（pin_area_id クエリパラメータ）にも対応
-// 右側にピン一覧サイドバー表示
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
-import type { ScoutingArea } from '@/lib/types'
-import type { HomeLocations } from '@/app/(app)/map/page'
-
-type AreaWithStation = Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude' | 'nearest_station'>
+import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
 
 type Props = {
-  areas: AreaWithStation[]
+  areas: MapArea[]
   homeLocations: HomeLocations
+}
+
+// profilesヘルパー（配列 or オブジェクトに対応）
+function getProfile(profiles: { display_name: string; avatar_emoji: string } | { display_name: string; avatar_emoji: string }[] | null) {
+  if (!profiles) return null
+  if (Array.isArray(profiles)) return profiles[0] || null
+  return profiles
+}
+
+// ユーザー別の平均評価を計算
+function getUserRatings(area: MapArea) {
+  const byUser: Record<string, { name: string; emoji: string; ratings: number[] }> = {}
+  for (const r of area.scouting_ratings || []) {
+    const p = getProfile(r.profiles)
+    if (!byUser[r.user_id]) {
+      byUser[r.user_id] = {
+        name: p?.display_name || '?',
+        emoji: p?.avatar_emoji || '',
+        ratings: [],
+      }
+    }
+    byUser[r.user_id].ratings.push(r.rating)
+  }
+  return Object.values(byUser).map((u) => ({
+    ...u,
+    avg: u.ratings.length > 0 ? (u.ratings.reduce((a, b) => a + b, 0) / u.ratings.length).toFixed(1) : '-',
+  }))
+}
+
+// アバター表示
+function Avatar({ emoji, size = 20 }: { emoji: string; size?: number }) {
+  const isImage = emoji && (emoji.startsWith('http') || emoji.startsWith('/'))
+  return (
+    <div className="rounded-full bg-primary-light/30 flex items-center justify-center overflow-hidden shrink-0" style={{ width: size, height: size }}>
+      {isImage ? <img src={emoji} alt="" className="w-full h-full object-cover" /> : <span style={{ fontSize: size * 0.55 }}>{emoji || '👤'}</span>}
+    </div>
+  )
 }
 
 export default function MapPageClient({ areas, homeLocations }: Props) {
   const [showHomeModal, setShowHomeModal] = useState(false)
   const [focusedAreaId, setFocusedAreaId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // サイドバーからのピン配置モード
   const [sidebarPinAreaId, setSidebarPinAreaId] = useState<string | null>(null)
   const searchParams = useSearchParams()
 
-  // URL経由 or サイドバー経由のピン配置モード
   const urlPinAreaId = searchParams.get('pin_area_id')
   const pinAreaId = sidebarPinAreaId || urlPinAreaId
   const focusAreaId = searchParams.get('focus_area_id')
-
   const pinArea = pinAreaId ? areas.find((a) => a.id === pinAreaId) : null
 
-  // ピンクリック（設定済み）: フォーカス
-  const handlePinClick = (id: string) => {
-    setFocusedAreaId(id)
-  }
-
-  // 未設定ピンクリック: ピン配置モードに入る
-  const handleUnpinnedClick = (id: string) => {
-    setSidebarPinAreaId(id)
-    setSidebarOpen(false)
-  }
-
-  // ピン配置完了時のコールバック
-  const handlePinPlaced = () => {
-    setSidebarPinAreaId(null)
-  }
-
-  // 実家クリック: 実家位置にフォーカス（homeKeyで判定）
+  const handlePinClick = (id: string) => setFocusedAreaId(id)
+  const handleUnpinnedClick = (id: string) => { setSidebarPinAreaId(id); setSidebarOpen(false) }
+  const handlePinPlaced = () => setSidebarPinAreaId(null)
   const handleHomeClick = (homeKey: 'shingo' | 'airi') => {
-    const loc = homeLocations[homeKey]
-    if (!loc) return
-    // focusedAreaId に home-shingo / home-airi をセットして区別
-    setFocusedAreaId(`home-${homeKey}`)
+    if (homeLocations[homeKey]) setFocusedAreaId(`home-${homeKey}`)
   }
 
-  // 緯度経度が設定済みのエリア数
   const pinnedCount = areas.filter((a) => a.latitude != null && a.longitude != null).length
 
   return (
     <div className="relative h-[calc(100vh-5rem)] md:h-screen flex">
-      {/* 地図エリア（flex-1で残りスペースを占有） */}
       <div className="relative flex-1">
-        {/* Google Maps表示 */}
         <MapView
           areas={areas}
           homeLocations={homeLocations}
@@ -73,202 +81,124 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
           focusedAreaId={focusedAreaId}
           onPinPlaced={handlePinPlaced}
         />
-
-        {/* フロートコントロールパネル（右上） */}
         <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-          {/* モバイル用: ピン一覧トグルボタン */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="md:hidden flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
             一覧
           </button>
-          <button
-            onClick={() => setShowHomeModal(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
+          <button onClick={() => setShowHomeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
             実家を設定
           </button>
         </div>
       </div>
 
-      {/* PC用: 右サイドバー（ピン一覧） */}
-      <aside className="hidden md:flex flex-col w-72 bg-bg-card border-l border-primary-light/30 overflow-hidden">
-        <SidebarContent
-          areas={areas}
-          homeLocations={homeLocations}
-          pinnedCount={pinnedCount}
-          focusedAreaId={focusedAreaId}
-          onPinClick={handlePinClick}
-          onHomeClick={handleHomeClick}
-          onUnpinnedClick={handleUnpinnedClick}
-        />
+      {/* PC: 右サイドバー */}
+      <aside className="hidden md:flex flex-col w-80 bg-bg-card border-l border-primary-light/30 overflow-hidden">
+        <SidebarContent areas={areas} homeLocations={homeLocations} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={handlePinClick} onHomeClick={handleHomeClick} onUnpinnedClick={handleUnpinnedClick} />
       </aside>
 
-      {/* モバイル用: スライドアップパネル */}
+      {/* モバイル: スライドアップ */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-[1100]">
-          <div
-            className="absolute inset-0 bg-black/30"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarOpen(false)} />
           <div className="absolute bottom-0 left-0 right-0 bg-bg-card rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col animate-slide-up">
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-primary-light/40 rounded-full" />
-            </div>
-            <SidebarContent
-              areas={areas}
-              homeLocations={homeLocations}
-              pinnedCount={pinnedCount}
-              focusedAreaId={focusedAreaId}
-              onPinClick={(id) => { handlePinClick(id); setSidebarOpen(false) }}
-              onHomeClick={(key) => { handleHomeClick(key); setSidebarOpen(false) }}
-              onUnpinnedClick={(id) => { handleUnpinnedClick(id); setSidebarOpen(false) }}
-            />
+            <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-primary-light/40 rounded-full" /></div>
+            <SidebarContent areas={areas} homeLocations={homeLocations} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={(id) => { handlePinClick(id); setSidebarOpen(false) }} onHomeClick={(key) => { handleHomeClick(key); setSidebarOpen(false) }} onUnpinnedClick={(id) => { handleUnpinnedClick(id); setSidebarOpen(false) }} />
           </div>
         </div>
       )}
 
-      {/* 実家位置設定モーダル */}
-      {showHomeModal && (
-        <HomeLocationModal
-          currentLocations={homeLocations}
-          onClose={() => setShowHomeModal(false)}
-        />
-      )}
+      {showHomeModal && <HomeLocationModal currentLocations={homeLocations} onClose={() => setShowHomeModal(false)} />}
     </div>
   )
 }
 
-// サイドバーの中身（PC・モバイル共通）
-function SidebarContent({
-  areas,
-  homeLocations,
-  pinnedCount,
-  focusedAreaId,
-  onPinClick,
-  onHomeClick,
-  onUnpinnedClick,
-}: {
-  areas: AreaWithStation[]
-  homeLocations: HomeLocations
-  pinnedCount: number
-  focusedAreaId: string | null
-  onPinClick: (id: string) => void
-  onHomeClick: (key: 'shingo' | 'airi') => void
-  onUnpinnedClick: (id: string) => void
+// サイドバー
+function SidebarContent({ areas, homeLocations, pinnedCount, focusedAreaId, onPinClick, onHomeClick, onUnpinnedClick }: {
+  areas: MapArea[]; homeLocations: HomeLocations; pinnedCount: number; focusedAreaId: string | null
+  onPinClick: (id: string) => void; onHomeClick: (key: 'shingo' | 'airi') => void; onUnpinnedClick: (id: string) => void
 }) {
   return (
     <>
-      {/* ヘッダー */}
       <div className="px-4 py-3 border-b border-primary-light/20">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-text">ピン一覧</h2>
-          <span className="text-xs text-text-sub bg-primary-light/20 px-2 py-0.5 rounded-full">
-            {pinnedCount}/{areas.length} 件
-          </span>
+          <span className="text-xs text-text-sub bg-primary-light/20 px-2 py-0.5 rounded-full">{pinnedCount}/{areas.length} 件</span>
         </div>
       </div>
 
-      {/* ピンリスト */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-        {/* 実家の項目 */}
+        {/* 実家 */}
         {homeLocations.shingo && (
-          <button
-            onClick={() => onHomeClick('shingo')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
-              focusedAreaId === 'home-shingo' ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'
-            }`}
-          >
-            {/* 家アイコン */}
-            <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
-              &#x1F3E0;
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-text truncate">
-                {homeLocations.shingo.label || 'しんごの実家'}
-              </p>
-            </div>
+          <button onClick={() => onHomeClick('shingo')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${focusedAreaId === 'home-shingo' ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'}`}>
+            <span className="shrink-0 text-base">🏠</span>
+            <p className="text-sm font-medium text-text truncate">{homeLocations.shingo.label || 'しんごの実家'}</p>
           </button>
         )}
         {homeLocations.airi && (
-          <button
-            onClick={() => onHomeClick('airi')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
-              focusedAreaId === 'home-airi' ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'
-            }`}
-          >
-            <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
-              &#x1F3E0;
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-text truncate">
-                {homeLocations.airi.label || 'あいりの実家'}
-              </p>
-            </div>
+          <button onClick={() => onHomeClick('airi')} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${focusedAreaId === 'home-airi' ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'}`}>
+            <span className="shrink-0 text-base">🏠</span>
+            <p className="text-sm font-medium text-text truncate">{homeLocations.airi.label || 'あいりの実家'}</p>
           </button>
         )}
 
-        {/* 区切り線（実家がある場合） */}
         {(homeLocations.shingo || homeLocations.airi) && areas.length > 0 && (
           <div className="border-b border-primary-light/15 my-1.5" />
         )}
 
-        {/* 下見エリア一覧 */}
+        {/* エリア一覧 */}
         {areas.map((area) => {
           const hasPinned = area.latitude != null && area.longitude != null
+          const userRatings = getUserRatings(area)
+
           return (
             <button
               key={area.id}
               onClick={() => hasPinned ? onPinClick(area.id) : onUnpinnedClick(area.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                !hasPinned
-                  ? 'opacity-60 hover:bg-accent/10 hover:opacity-100'
-                  : focusedAreaId === area.id
-                    ? 'bg-primary-light/30'
-                    : 'hover:bg-primary-light/20'
+              className={`w-full px-3 py-2.5 rounded-lg text-left transition-colors ${
+                !hasPinned ? 'opacity-60 hover:bg-accent/10 hover:opacity-100'
+                : focusedAreaId === area.id ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'
               }`}
             >
-              {/* 赤い丸アイコン */}
-              <span className={`shrink-0 w-3 h-3 rounded-full border-2 border-white shadow-sm ${
-                hasPinned ? 'bg-red-500' : 'bg-gray-300'
-              }`} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium text-text truncate">{area.name}</p>
-                  {/* 未設定バッジ */}
-                  {!hasPinned && (
-                    <span className="shrink-0 text-[10px] text-white bg-accent px-1.5 py-0.5 rounded cursor-pointer">
-                      ピンを設定
-                    </span>
+              <div className="flex items-center gap-2.5">
+                <span className={`shrink-0 w-3 h-3 rounded-full border-2 border-white shadow-sm ${hasPinned ? 'bg-red-500' : 'bg-gray-300'}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-text truncate">{area.name}</p>
+                    {!hasPinned && <span className="shrink-0 text-[10px] text-white bg-accent px-1.5 py-0.5 rounded">ピンを設定</span>}
+                  </div>
+                  {/* 訪問日 */}
+                  {area.visited_date && (
+                    <p className="text-[11px] text-text-sub mt-0.5">
+                      {new Date(area.visited_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
                   )}
                 </div>
-                {/* 最寄り駅 */}
-                {area.nearest_station && (
-                  <p className="text-xs text-text-sub truncate mt-0.5">
-                    {area.nearest_station}
-                  </p>
-                )}
               </div>
+
+              {/* ユーザー別評価 */}
+              {userRatings.length > 0 && (
+                <div className="mt-1.5 pl-5 space-y-0.5">
+                  {userRatings.map((u, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <Avatar emoji={u.emoji} size={16} />
+                      <span className="text-[11px] text-text-sub">{u.name}</span>
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        <svg className="w-3 h-3 text-accent-warm" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span className="text-[11px] font-medium text-text">{u.avg}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </button>
           )
         })}
 
-        {/* エリアなし */}
-        {areas.length === 0 && (
-          <p className="text-xs text-text-sub text-center py-6">
-            まだエリアがありません
-          </p>
-        )}
+        {areas.length === 0 && <p className="text-xs text-text-sub text-center py-6">まだエリアがありません</p>}
       </div>
     </>
   )
