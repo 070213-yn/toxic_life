@@ -53,9 +53,9 @@ function StarDisplay({ rating }: { rating: number }) {
   )
 }
 
-// 写真URLを生成するヘルパー
+// 写真URLを生成するヘルパー（サムネイル用に縮小）
 function getPhotoUrl(storagePath: string): string {
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scouting-photos/${storagePath}`
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/scouting-photos/${storagePath}?width=300&height=300&resize=cover`
 }
 
 // アニメーションディレイのクラス名

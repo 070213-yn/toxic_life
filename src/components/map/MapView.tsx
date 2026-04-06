@@ -7,7 +7,7 @@ import { useCallback, useState, useRef, useEffect } from 'react'
 import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, StandaloneSearchBox } from '@react-google-maps/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/client'
+import { supabase as supabaseClient } from '@/lib/supabase/client'
 import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
 
 type Props = {
@@ -22,6 +22,46 @@ type Props = {
 
 // useJsApiLoader の libraries は再レンダリングで参照が変わらないようにstatic定義
 const LIBRARIES: ('places')[] = ['places']
+
+// アクセス情報の自動計算先
+const ACCESS_DESTINATIONS = [
+  { name: '新宿', query: '新宿駅' },
+  { name: '横浜', query: '横浜駅' },
+  { name: 'センター北', query: 'センター北駅' },
+  { name: '辻堂', query: '辻堂駅' },
+]
+
+// 乗換時間を計算してDBに保存する
+async function calcAndSaveAccessInfo(areaId: string, stationName: string) {
+  if (!stationName) return
+
+  const service = new google.maps.DistanceMatrixService()
+  const destinations = ACCESS_DESTINATIONS.map((d) => d.query)
+
+  try {
+    const result = await service.getDistanceMatrix({
+      origins: [`${stationName}駅`],
+      destinations,
+      travelMode: google.maps.TravelMode.TRANSIT,
+      region: 'JP',
+    })
+
+    if (result.rows[0]) {
+      const accessInfo: Record<string, string> = {}
+      result.rows[0].elements.forEach((el, i) => {
+        if (el.status === 'OK' && el.duration) {
+          accessInfo[ACCESS_DESTINATIONS[i].name] = el.duration.text
+        }
+      })
+
+      if (Object.keys(accessInfo).length > 0) {
+        await supabaseClient.from('scouting_areas').update({ access_info: accessInfo }).eq('id', areaId)
+      }
+    }
+  } catch (e) {
+    console.error('アクセス情報の計算に失敗:', e)
+  }
+}
 
 // 地図のスタイル
 const mapContainerStyle = {
@@ -186,7 +226,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
     setCreating(true)
 
     const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('scouting_areas')
       .insert({
         name: newAreaName.trim(),
@@ -200,6 +240,10 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
 
     if (!error && data) {
       setCreatedAreaId(data.id)
+      // アクセス情報を自動計算（最寄り駅があれば）
+      if (newStation.trim()) {
+        calcAndSaveAccessInfo(data.id, newStation.trim())
+      }
       router.refresh()
     }
     setCreating(false)
@@ -210,7 +254,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
     if (!pinAreaId || !pinPos) return
     setPinSaving(true)
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('scouting_areas')
       .update({ latitude: pinPos.lat, longitude: pinPos.lng })
       .eq('id', pinAreaId)
@@ -218,6 +262,12 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
     if (!error) {
       setPinSaved(true)
       setPinPlacing(false)
+      // アクセス情報を自動計算（ピン配置対象のエリアの最寄り駅を使う）
+      const targetArea = areas.find((a) => a.id === pinAreaId)
+      const station = (targetArea as Record<string, unknown>)?.nearest_station as string | undefined
+      if (station) {
+        calcAndSaveAccessInfo(pinAreaId, station)
+      }
       router.refresh()
       onPinPlaced?.()
     }
@@ -365,7 +415,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
                     {area.scouting_photos && area.scouting_photos.length > 0 && (
                       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
                         {area.scouting_photos.slice(0, 6).map((photo) => {
-                          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scouting-photos/${photo.storage_path}`
+                          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/scouting-photos/${photo.storage_path}?width=128&height=128&resize=cover`
                           return (
                             <img
                               key={photo.id}
