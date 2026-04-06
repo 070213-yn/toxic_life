@@ -1,9 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import CountdownBanner from '@/components/dashboard/CountdownBanner'
 import SavingsRing from '@/components/dashboard/SavingsRing'
-import MilestoneMap from '@/components/dashboard/MilestoneMap'
 import TodoHighlight from '@/components/dashboard/TodoHighlight'
-import ActivityFeed from '@/components/dashboard/ActivityFeed'
 import type { Milestone, Task, Saving } from '@/lib/types'
 
 // ダッシュボード（トップページ）
@@ -138,17 +136,8 @@ export default async function DashboardPage() {
   )
   const recentActivities = activities.slice(0, 5)
 
-  // 進行中マイルストーンのタスクを取得（未完了優先）
-  const currentMilestone = milestones.find((m) => !m.is_completed)
-  const highlightTasks: Task[] = currentMilestone?.tasks
-    ? [...currentMilestone.tasks]
-        .sort((a, b) => {
-          // 未完了を上に、その中でsort_order順
-          if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1
-          return a.sort_order - b.sort_order
-        })
-        .slice(0, 5)
-    : []
+  // 進行中マイルストーンを取得
+  const currentMilestone = milestones.find((m) => !m.is_completed) || null
 
   // 時間帯に応じた挨拶を生成
   const hour = new Date().getHours()
@@ -178,8 +167,8 @@ export default async function DashboardPage() {
 
       {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}
       <main className="max-w-5xl mx-auto px-6 py-4 space-y-6">
-        {/* 上段: カウントダウン + 貯金プログレス + 活動フィード（高さ揃え） */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {/* 上段: カウントダウン(左) + 今月のやること(中央広め) + 貯金(右) */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
           {/* カウントダウン */}
           <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
             <div className="w-full flex flex-col">
@@ -187,8 +176,13 @@ export default async function DashboardPage() {
             </div>
           </div>
 
+          {/* 現在のクエスト（2カラム分） */}
+          <div className="lg:col-span-2 min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
+            <TodoHighlight milestone={currentMilestone} />
+          </div>
+
           {/* 貯金プログレス */}
-          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
+          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
             <SavingsRing
               totalSavings={totalSavings}
               shingoSavings={shingoSavings}
@@ -196,21 +190,6 @@ export default async function DashboardPage() {
               goal={savingsGoal}
             />
           </div>
-
-          {/* 活動フィード */}
-          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
-            <ActivityFeed activities={recentActivities} />
-          </div>
-        </div>
-
-        {/* ロードマップ（全幅） */}
-        <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '300ms' }}>
-          <MilestoneMap milestones={milestones} />
-        </div>
-
-        {/* 下段: TODO */}
-        <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '400ms' }}>
-          <TodoHighlight tasks={highlightTasks} />
         </div>
 
         {/* 下部の余白（モバイルはフッターナビの分を確保） */}

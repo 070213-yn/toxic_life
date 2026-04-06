@@ -3,20 +3,32 @@
 import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import type { Task } from '@/lib/types'
+import type { Milestone } from '@/lib/types'
 
 type Props = {
-  tasks: Task[]
+  milestone: Milestone | null
 }
 
-// 今月のやること
-export default function TodoHighlight({ tasks }: Props) {
+export default function TodoHighlight({ milestone }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [justCheckedId, setJustCheckedId] = useState<string | null>(null)
+
+  // タスクのローカル状態
+  const tasks = milestone?.tasks || []
   const [localTasks, setLocalTasks] = useState(tasks)
 
-  const toggleTask = async (taskId: string, currentDone: boolean) => {
+  const completedCount = localTasks.filter((t) => t.is_completed).length
+  const totalCount = localTasks.length
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+  const toggleTask = useCallback(async (taskId: string, currentDone: boolean) => {
     const newDone = !currentDone
+    if (!currentDone) {
+      setJustCheckedId(taskId)
+      setTimeout(() => setJustCheckedId(null), 400)
+    }
+
     setLocalTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
@@ -25,120 +37,101 @@ export default function TodoHighlight({ tasks }: Props) {
       )
     )
 
-    const { error } = await supabase
+    await supabase
       .from('tasks')
-      .update({
-        is_completed: newDone,
-        completed_at: newDone ? new Date().toISOString() : null,
-      })
+      .update({ is_completed: newDone, completed_at: newDone ? new Date().toISOString() : null })
       .eq('id', taskId)
 
-    if (error) {
-      setLocalTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId ? { ...t, is_completed: currentDone, completed_at: null } : t
-        )
-      )
-      return
-    }
+    startTransition(() => router.refresh())
+  }, [router])
 
-    startTransition(() => {
-      router.refresh()
-    })
+  // 担当者の色
+  const assigneeColor = (assignee: string) => {
+    if (assignee === 'しんご') return 'text-primary'
+    if (assignee === 'あいり') return 'text-accent'
+    return 'text-text-sub'
   }
 
-  if (localTasks.length === 0) {
-    return null
+  if (!milestone) {
+    return (
+      <div className="w-full flex-1 rounded-2xl bg-bg-card p-5 shadow-sm flex items-center justify-center">
+        <p className="text-sm text-text-sub">全チャプタークリア！</p>
+      </div>
+    )
   }
 
-  // 担当者別にグループ化
-  const grouped: Record<string, Task[]> = {}
-  for (const t of localTasks.slice(0, 8)) {
-    const key = t.assignee
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(t)
-  }
-
-  // チェック直後のバウンスアニメーション制御
-  const [justCheckedId, setJustCheckedId] = useState<string | null>(null)
-
-  const handleToggle = useCallback((taskId: string, currentDone: boolean) => {
-    if (!currentDone) {
-      setJustCheckedId(taskId)
-      setTimeout(() => setJustCheckedId(null), 400)
-    }
-    toggleTask(taskId, currentDone)
-  }, [toggleTask])
+  // 未完了を先に、sort_order順
+  const sortedTasks = [...localTasks].sort((a, b) => {
+    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1
+    return a.sort_order - b.sort_order
+  })
 
   return (
-    <div className="rounded-2xl bg-bg-card p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-text">今月のやること</h2>
-        <a href="/quests" className="text-xs text-primary hover:text-primary/80 transition-colors">
-          すべて見る &rarr;
+    <div className="w-full flex-1 rounded-2xl bg-bg-card p-5 shadow-sm flex flex-col">
+      {/* チャプターヘッダー */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">
+            Chapter {milestone.sort_order}
+          </span>
+          <h2 className="text-sm font-bold text-text">{milestone.title}</h2>
+        </div>
+        <a href="/quests" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+          詳細 &rarr;
         </a>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(grouped).map(([assignee, assigneeTasks], groupIdx) => (
+      {/* プログレスバー */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] text-text-sub">{completedCount}/{totalCount} 完了</span>
+          <span className="text-[11px] font-medium text-primary">{progress}%</span>
+        </div>
+        <div className="w-full h-1.5 bg-primary-light/30 rounded-full overflow-hidden">
           <div
-            key={assignee}
-            style={{
-              animation: 'fade-slide-up 0.4s ease-out both',
-              animationDelay: `${groupIdx * 80}ms`,
-            }}
-          >
-            {/* 担当者ラベル */}
-            <div className="mb-2">
-              <span className={`
-                text-[11px] px-2 py-0.5 rounded-full font-medium
-                ${assignee === 'しんご'
-                  ? 'bg-primary-light text-primary'
-                  : assignee === 'あいり'
-                    ? 'bg-accent/20 text-accent'
-                    : 'bg-gray-100 text-text-sub'
-                }
-              `}>
-                {assignee}
-              </span>
-            </div>
-
-            {/* タスクリスト */}
-            <ul className="space-y-2">
-              {assigneeTasks.map((task) => (
-                <li key={task.id} className="flex items-start gap-2 group">
-                  <button
-                    onClick={() => handleToggle(task.id, task.is_completed)}
-                    disabled={isPending}
-                    className={`
-                      w-4 h-4 mt-0.5 rounded border-2 flex-shrink-0
-                      flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-[0.85]
-                      ${task.is_completed
-                        ? 'bg-success border-success'
-                        : 'border-gray-300 hover:border-primary'
-                      }
-                    `}
-                    style={{
-                      animation: justCheckedId === task.id
-                        ? 'check-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                        : 'none',
-                    }}
-                  >
-                    {task.is_completed && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                  <span className={`text-sm leading-tight transition-all duration-300 ${task.is_completed ? 'line-through text-text-sub opacity-50' : 'text-text'}`}>
-                    {task.title}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+            className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${progress}%`, animation: 'bar-fill 0.8s ease-out' }}
+          />
+        </div>
       </div>
+
+      {/* タスクリスト */}
+      <ul className="space-y-1 flex-1 overflow-y-auto">
+        {sortedTasks.map((task) => (
+          <li key={task.id} className="flex items-center gap-2 py-0.5">
+            <button
+              onClick={() => toggleTask(task.id, task.is_completed)}
+              disabled={isPending}
+              className={`w-3.5 h-3.5 rounded border-[1.5px] flex-shrink-0 flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-[0.85]
+                ${task.is_completed ? 'bg-success border-success' : 'border-gray-300 hover:border-primary'}`}
+              style={{
+                animation: justCheckedId === task.id ? 'check-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+              }}
+            >
+              {task.is_completed && (
+                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+            <span className={`text-xs leading-snug flex-1 transition-all duration-200 ${task.is_completed ? 'line-through text-text-sub/40' : 'text-text'}`}>
+              {task.title}
+            </span>
+            <span className={`text-[10px] shrink-0 ${assigneeColor(task.assignee)}`}>
+              {task.assignee === '2人共通' ? '2人' : task.assignee}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {/* ご褒美 */}
+      {milestone.reward && (
+        <div className="mt-2 pt-2 border-t border-primary-light/20">
+          <p className="text-[11px] text-accent-warm">
+            <span className="mr-1">🎁</span>{milestone.reward}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
