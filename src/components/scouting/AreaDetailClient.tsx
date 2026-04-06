@@ -10,6 +10,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import { findRentData } from '@/lib/rent-data'
 import type { ScoutingArea, ScoutingPhoto } from '@/lib/types'
 import RatingSection from './RatingSection'
 import CommentSection from './CommentSection'
@@ -670,9 +671,20 @@ export default function AreaDetailClient({ area }: Props) {
               >
                 {area.rent_memo ? (
                   <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">{area.rent_memo}</p>
-                ) : (
-                  <p className="text-xs text-text-sub/40 italic">クリックして入力...</p>
-                )}
+                ) : (() => {
+                  // 家賃メモが空の場合、駅名から相場を参考表示
+                  const rentRef = findRentData(area.nearest_station || '')
+                  return rentRef ? (
+                    <div>
+                      <p className="text-xs text-text-sub/40 italic mb-1.5">クリックして入力...</p>
+                      <p className="text-xs text-primary/80 bg-primary-light/20 rounded-lg px-2.5 py-1.5">
+                        参考: {rentRef.station}駅の2LDK相場は約{rentRef.data.rent}です
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-sub/40 italic">クリックして入力...</p>
+                  )
+                })()}
               </div>
             )}
           </div>

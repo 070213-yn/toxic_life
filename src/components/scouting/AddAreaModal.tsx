@@ -3,9 +3,10 @@
 // エリア追加モーダル
 // 新しい下見エリアを登録する（写真アップロード、アクセス情報入力対応）
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
+import { findRentData } from '@/lib/rent-data'
 import Image from 'next/image'
 
 type Props = {
@@ -30,6 +31,9 @@ export default function AddAreaModal({ onClose }: Props) {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // 駅名から家賃相場データを検索
+  const rentMatch = useMemo(() => findRentData(nearestStation), [nearestStation])
 
   // 写真選択ハンドラ
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +69,13 @@ export default function AddAreaModal({ onClose }: Props) {
     setError('')
 
     try {
+      // 家賃メモが空で相場データがある場合は自動入力
+      const autoRentMemo = rentMemo.trim()
+        ? rentMemo.trim()
+        : rentMatch
+          ? `2LDK相場: ${rentMatch.data.rent}（データベース調べ）`
+          : null
+
       // エリアをINSERT
       const { data: area, error: insertError } = await supabase
         .from('scouting_areas')
@@ -72,7 +83,7 @@ export default function AddAreaModal({ onClose }: Props) {
           name: name.trim(),
           nearest_station: nearestStation.trim() || null,
           visited_date: visitedDate || null,
-          rent_memo: rentMemo.trim() || null,
+          rent_memo: autoRentMemo,
         })
         .select()
         .single()
@@ -186,6 +197,18 @@ export default function AddAreaModal({ onClose }: Props) {
               placeholder="例: 中目黒駅"
               className="w-full border border-primary-light/40 rounded-xl px-4 py-2.5 text-sm text-text bg-bg placeholder:text-text-sub/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            {/* 駅名に一致する家賃相場データがあれば表示 */}
+            {rentMatch && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-success/10 rounded-lg border border-success/20">
+                <svg className="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-text">
+                  2LDK相場: <span className="font-bold">{rentMatch.data.rent}</span>
+                  <span className="text-text-sub ml-1">({rentMatch.data.line})</span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 訪問日 */}

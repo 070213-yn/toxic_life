@@ -89,6 +89,15 @@ const tabs = [
       </svg>
     ),
   },
+  {
+    label: '物件ヒント',
+    href: '/tips',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21h6m-3-3v3m-4-8a4 4 0 1 1 8 0c0 1.5-.8 2.5-2 3.5-.4.3-.7.7-.9 1.1H11c-.2-.4-.5-.8-.9-1.1C8.8 15.5 8 14.5 8 13z" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Navigation() {

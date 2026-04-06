@@ -8,6 +8,7 @@ import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, StandaloneSearchBox } 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase as supabaseClient } from '@/lib/supabase/client'
+import { findRentData } from '@/lib/rent-data'
 import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
 
 type Props = {
@@ -225,6 +226,10 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
     if (!newAreaName.trim() || !clickedPos) return
     setCreating(true)
 
+    // 駅名から家賃相場を自動設定
+    const rentMatch = newStation.trim() ? findRentData(newStation.trim()) : null
+    const autoRentMemo = rentMatch ? `2LDK相場: ${rentMatch.data.rent}（データベース調べ）` : null
+
     const today = new Date().toISOString().split('T')[0]
     const { data, error } = await supabaseClient
       .from('scouting_areas')
@@ -234,6 +239,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
         latitude: clickedPos.lat,
         longitude: clickedPos.lng,
         visited_date: today,
+        rent_memo: autoRentMemo,
       })
       .select('id')
       .single()
