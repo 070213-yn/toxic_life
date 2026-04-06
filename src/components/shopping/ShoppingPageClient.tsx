@@ -68,9 +68,17 @@ type Props = {
   categories: ShoppingCategory[]
 }
 
-export default function ShoppingPageClient({ categories }: Props) {
+export default function ShoppingPageClient({ categories: initialCategories }: Props) {
   // リアルタイム監視
   useRealtimeRefresh(REALTIME_TABLES)
+
+  // ローカルstate（楽観的更新用）
+  const [categories, setCategories] = useState(initialCategories)
+
+  // propsが変わったら同期（リアルタイム更新時）
+  useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
 
   // フィルター状態
   const [statusFilter, setStatusFilter] = useState('all')
@@ -163,20 +171,36 @@ export default function ShoppingPageClient({ categories }: Props) {
     await supabase.from('shopping_items').update({ status: newStatus }).eq('id', itemId)
   }, [])
 
-  // 候補の仮決定切り替え（ラジオボタン的: 同じアイテムの他の候補をfalseに）
+  // 候補の仮決定切り替え（楽観的UI更新 + DB保存）
   const toggleCandidateSelected = useCallback(async (candidate: ShoppingCandidate, itemId: string) => {
-    if (candidate.is_selected) {
-      // 選択解除
-      await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
-      // アイテムステータスを検討中に戻す
-      await supabase.from('shopping_items').update({ status: 'reviewing' }).eq('id', itemId)
-    } else {
-      // 同じアイテムの全候補をfalseに
+    const newSelected = !candidate.is_selected
+
+    // 楽観的更新: ローカルstateを即座に変更
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        shopping_items: cat.shopping_items?.map((item) => {
+          if (item.id !== itemId) return item
+          return {
+            ...item,
+            status: newSelected ? 'decided' : 'considering',
+            shopping_candidates: item.shopping_candidates?.map((c) => ({
+              ...c,
+              is_selected: c.id === candidate.id ? newSelected : false,
+            })),
+          }
+        }),
+      }))
+    )
+
+    // DB保存
+    if (newSelected) {
       await supabase.from('shopping_candidates').update({ is_selected: false }).eq('item_id', itemId)
-      // この候補を選択
       await supabase.from('shopping_candidates').update({ is_selected: true }).eq('id', candidate.id)
-      // アイテムステータスを仮決定に
       await supabase.from('shopping_items').update({ status: 'decided' }).eq('id', itemId)
+    } else {
+      await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
+      await supabase.from('shopping_items').update({ status: 'considering' }).eq('id', itemId)
     }
   }, [])
 
