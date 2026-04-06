@@ -186,6 +186,18 @@ export function TaskList({
     [onTaskDelete]
   )
 
+  // 担当者変更
+  const handleAssigneeChange = useCallback(
+    async (taskId: string, newAssignee: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        onTaskUpdate({ ...task, assignee: newAssignee })
+      }
+      await supabase.from('tasks').update({ assignee: newAssignee }).eq('id', taskId)
+    },
+    [tasks, onTaskUpdate]
+  )
+
   // ドラッグ＆ドロップのセンサー設定
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -273,6 +285,7 @@ export function TaskList({
                       savingsGoal={savingsGoal}
                       onToggle={handleToggle}
                       onDelete={handleDelete}
+                      onAssigneeChange={handleAssigneeChange}
                       textColorClass={group.styles.textColor}
                     />
                     <TaskReactions
@@ -292,12 +305,21 @@ export function TaskList({
 
 // 個別タスクアイテム
 // チェック時にバウンスアニメーション付き
+// 担当者変更の選択肢
+const ASSIGNEE_OPTIONS = [
+  { value: 'しんご', label: 'しんご' },
+  { value: 'あいり', label: 'あいり' },
+  { value: '2人共通', label: '2人で' },
+  { value: '各自', label: '各自' },
+]
+
 function TaskItem({
   task,
   totalSavings,
   savingsGoal,
   onToggle,
   onDelete,
+  onAssigneeChange,
   textColorClass,
 }: {
   task: Task
@@ -305,12 +327,14 @@ function TaskItem({
   savingsGoal: number | null
   onToggle: (task: Task) => void
   onDelete: (taskId: string) => void
+  onAssigneeChange: (taskId: string, newAssignee: string) => void
   textColorClass: string
 }) {
   const [justChecked, setJustChecked] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const editRef = useRef<HTMLInputElement>(null)
+  const [showAssigneeMenu, setShowAssigneeMenu] = useState(false)
 
   // タスク名を保存
   const saveTitle = useCallback(async () => {
@@ -428,6 +452,38 @@ function TaskItem({
           自動
         </span>
       )}
+
+      {/* 担当者変更（ホバー時表示） */}
+      <div className="relative shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
+        <button
+          onClick={() => setShowAssigneeMenu(!showAssigneeMenu)}
+          className="text-text-sub/40 hover:text-primary p-1 mt-0.5"
+          title="担当者を変更"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </button>
+        {showAssigneeMenu && (
+          <div className="absolute right-0 top-7 z-50 bg-bg-card rounded-lg shadow-lg border border-primary-light/30 py-1 min-w-[90px]">
+            {ASSIGNEE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onAssigneeChange(task.id, opt.value)
+                  setShowAssigneeMenu(false)
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-primary-light/20 transition-colors ${task.assignee === opt.value ? 'text-primary font-medium' : 'text-text'}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 削除ボタン（ホバー時表示） */}
       <button
