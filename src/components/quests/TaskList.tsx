@@ -15,18 +15,19 @@ type Props = {
   profiles: Profile[] // 担当者のアバター表示用
 }
 
-// 担当者のグループ定義（表示名をマッピング）
+// 担当者のグループ定義（複数の値をまとめてグループ化）
 const ASSIGNEE_GROUPS = [
-  { key: 'しんご', label: 'しんご' },
-  { key: 'あいり', label: 'あいり' },
-  { key: '2人共通', label: '2人で' },
+  { keys: ['しんご'], label: 'しんご' },
+  { keys: ['あいり'], label: 'あいり' },
+  { keys: ['2人共通', '2人で'], label: '2人で' },
+  { keys: ['各自'], label: '各自' },
 ] as const
 
-// 担当者別のスタイル定義
+// 担当者別のスタイル定義（ラベルで引く）
 const ASSIGNEE_STYLES: Record<string, {
-  groupBg: string      // グループ背景色
-  borderColor: string  // 左ボーダー色
-  textColor: string    // タスク名のテキスト色
+  groupBg: string
+  borderColor: string
+  textColor: string
 }> = {
   'しんご': {
     groupBg: 'bg-primary/[0.06]',
@@ -38,9 +39,14 @@ const ASSIGNEE_STYLES: Record<string, {
     borderColor: 'border-l-accent/60',
     textColor: 'text-accent',
   },
-  '2人共通': {
+  '2人で': {
     groupBg: 'bg-amber-500/[0.06]',
     borderColor: 'border-l-amber-400/60',
+    textColor: 'text-text',
+  },
+  '各自': {
+    groupBg: 'bg-primary/[0.04]',
+    borderColor: 'border-l-text-sub/40',
     textColor: 'text-text',
   },
 }
@@ -138,19 +144,26 @@ export function TaskList({
     )
   }
 
-  // 担当者ごとにグループ化
-  const grouped = ASSIGNEE_GROUPS.map((group) => ({
-    ...group,
-    tasks: tasks.filter((t) => t.assignee === group.key),
-    profile: findProfile(profiles, group.key),
-    styles: ASSIGNEE_STYLES[group.key] ?? ASSIGNEE_STYLES['2人共通'],
+  // 担当者ごとにグループ化（複数keyでマッチ）
+  const groupedKnown = ASSIGNEE_GROUPS.map((group) => ({
+    label: group.label,
+    tasks: tasks.filter((t) => (group.keys as readonly string[]).includes(t.assignee)),
+    profile: findProfile(profiles, group.label),
+    styles: ASSIGNEE_STYLES[group.label] ?? ASSIGNEE_STYLES['2人で'],
   })).filter((g) => g.tasks.length > 0)
+
+  // どのグループにも属さないタスクを「その他」としてまとめる
+  const allGroupedKeys = ASSIGNEE_GROUPS.flatMap((g) => [...g.keys] as string[])
+  const ungrouped = tasks.filter((t) => !allGroupedKeys.includes(t.assignee))
+  const grouped = ungrouped.length > 0
+    ? [...groupedKnown, { label: 'その他', tasks: ungrouped, profile: undefined, styles: ASSIGNEE_STYLES['2人で'] }]
+    : groupedKnown
 
   return (
     <div className="pt-4 space-y-4">
       {grouped.map((group) => (
         <div
-          key={group.key}
+          key={group.label}
           className={`rounded-xl ${group.styles.groupBg} border-l-[3px] ${group.styles.borderColor} px-3 py-2.5`}
         >
           {/* 担当者ラベル（アバター付き） */}
