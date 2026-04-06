@@ -9,11 +9,28 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase as supabaseClient } from '@/lib/supabase/client'
 import { findRentData } from '@/lib/rent-data'
-import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
+import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
+
+// 目印ピンの色マッピング
+const MARKER_COLORS: Record<string, string> = {
+  blue: '#3B82F6',
+  green: '#22C55E',
+  orange: '#F97316',
+  pink: '#EC4899',
+}
+
+// 色選択用の選択肢
+const COLOR_OPTIONS: { value: CustomMarker['color']; label: string; hex: string }[] = [
+  { value: 'blue', label: '青', hex: '#3B82F6' },
+  { value: 'green', label: '緑', hex: '#22C55E' },
+  { value: 'orange', label: 'オレンジ', hex: '#F97316' },
+  { value: 'pink', label: 'ピンク', hex: '#EC4899' },
+]
 
 type Props = {
   areas: MapArea[]
   homeLocations: HomeLocations
+  customMarkers: CustomMarker[]
   pinAreaId?: string | null
   pinAreaName?: string | null
   focusAreaId?: string | null
@@ -75,11 +92,12 @@ const mapContainerStyle = {
 // 関東圏の中心
 const defaultCenter = { lat: 35.68, lng: 139.76 }
 
-export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId, onPinPlaced, homePlacing, onHomePlaced }: Props) {
+export default function MapView({ areas, homeLocations, customMarkers, pinAreaId, pinAreaName, focusAreaId, focusedAreaId, onPinPlaced, homePlacing, onHomePlaced }: Props) {
   const router = useRouter()
   const mapRef = useRef<google.maps.Map | null>(null)
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
   const [selectedHome, setSelectedHome] = useState<string | null>(null)
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null)
 
   // 機能A: マップクリックで下見メモ作成
   const [clickedPos, setClickedPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -87,6 +105,15 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
   const [newStation, setNewStation] = useState('')
   const [creating, setCreating] = useState(false)
   const [createdAreaId, setCreatedAreaId] = useState<string | null>(null)
+
+  // マップクリック時の選択肢モード: null=選択中, 'scouting'=下見メモ, 'marker'=目印
+  const [clickMode, setClickMode] = useState<null | 'scouting' | 'marker'>(null)
+
+  // 目印追加フォーム
+  const [markerLabel, setMarkerLabel] = useState('')
+  const [markerColor, setMarkerColor] = useState<CustomMarker['color']>('blue')
+  const [markerSaving, setMarkerSaving] = useState(false)
+  const [markerDeletingId, setMarkerDeletingId] = useState<string | null>(null)
 
   // 機能B: ピン配置モード
   const [pinPlacing, setPinPlacing] = useState(!!pinAreaId)
@@ -164,6 +191,20 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       return
     }
 
+    // 目印マーカーへのフォーカス
+    if (focusedAreaId.startsWith('marker-')) {
+      const markerId = focusedAreaId.replace('marker-', '')
+      const marker = customMarkers.find((m) => m.id === markerId)
+      if (marker) {
+        mapRef.current.panTo({ lat: marker.lat, lng: marker.lng })
+        mapRef.current.setZoom(15)
+        setSelectedMarker(marker.id)
+        setSelectedArea(null)
+        setSelectedHome(null)
+      }
+      return
+    }
+
     // エリアへのフォーカス
     const area = areas.find((a) => a.id === focusedAreaId)
     if (area && area.latitude != null && area.longitude != null) {
@@ -172,7 +213,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       setSelectedArea(area.id)
       setSelectedHome(null)
     }
-  }, [focusedAreaId, areas, homeLocations])
+  }, [focusedAreaId, areas, homeLocations, customMarkers])
 
   // 検索ボックスのハンドラ
   const onSearchLoad = (ref: google.maps.places.SearchBox) => {
@@ -224,10 +265,16 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       hasPoints = true
     }
 
+    // 目印ピンもboundsに含める
+    customMarkers.forEach((marker) => {
+      bounds.extend({ lat: marker.lat, lng: marker.lng })
+      hasPoints = true
+    })
+
     if (hasPoints) {
       map.fitBounds(bounds, 60)
     }
-  }, [areas, homeLocations, focusArea])
+  }, [areas, homeLocations, customMarkers, focusArea])
 
   // 地図クリックハンドラ
   const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
@@ -247,14 +294,18 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       return
     }
 
-    // 通常モード: 下見メモ作成フォームを表示（実家配置中は無視）
+    // 通常モード: 選択肢を表示（実家配置中は無視）
     if (!pinAreaId && !homePlacing) {
       setClickedPos({ lat, lng })
+      setClickMode(null) // 選択肢モードにリセット
       setNewAreaName('')
       setNewStation('')
       setCreatedAreaId(null)
+      setMarkerLabel('')
+      setMarkerColor('blue')
       setSelectedArea(null)
       setSelectedHome(null)
+      setSelectedMarker(null)
     }
   }, [pinAreaId, pinPlacing, pinSaved, homePlacing, homeSaved])
 
@@ -290,6 +341,52 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       router.refresh()
     }
     setCreating(false)
+  }
+
+  // 目印ピンを追加
+  const handleAddMarker = async () => {
+    if (!markerLabel.trim() || !clickedPos) return
+    setMarkerSaving(true)
+
+    const newMarker: CustomMarker = {
+      id: crypto.randomUUID(),
+      lat: clickedPos.lat,
+      lng: clickedPos.lng,
+      label: markerLabel.trim(),
+      color: markerColor,
+    }
+
+    // 既存の目印配列に追加
+    const updatedMarkers = [...customMarkers, newMarker]
+
+    await supabaseClient
+      .from('settings')
+      .upsert(
+        { key: 'custom_markers', value: { markers: updatedMarkers } },
+        { onConflict: 'key' }
+      )
+
+    setMarkerSaving(false)
+    setClickedPos(null)
+    setClickMode(null)
+    router.refresh()
+  }
+
+  // 目印ピンを削除
+  const handleDeleteMarker = async (markerId: string) => {
+    setMarkerDeletingId(markerId)
+    const updatedMarkers = customMarkers.filter((m) => m.id !== markerId)
+
+    await supabaseClient
+      .from('settings')
+      .upsert(
+        { key: 'custom_markers', value: { markers: updatedMarkers } },
+        { onConflict: 'key' }
+      )
+
+    setMarkerDeletingId(null)
+    setSelectedMarker(null)
+    router.refresh()
   }
 
   // 機能B: ピン位置を保存
@@ -561,9 +658,9 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
           >
             <InfoWindowF
               position={clickedPos}
-              onCloseClick={() => { setClickedPos(null); setCreatedAreaId(null) }}
+              onCloseClick={() => { setClickedPos(null); setCreatedAreaId(null); setClickMode(null) }}
             >
-              <div className="min-w-[200px] p-1">
+              <div className="min-w-[220px] p-1">
                 {createdAreaId ? (
                   // 作成完了後の表示
                   <div className="text-center">
@@ -575,10 +672,34 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
                       下見メモを開く
                     </button>
                   </div>
-                ) : (
-                  // 作成フォーム
+                ) : clickMode === null ? (
+                  // 選択肢モード
                   <div>
-                    <p className="text-xs font-bold text-gray-700 mb-2">この場所で下見メモを作成</p>
+                    <p className="text-xs font-bold text-gray-700 mb-2.5">この場所に...</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setClickMode('scouting')}
+                        className="flex-1 px-3 py-2 text-xs bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
+                      >
+                        下見メモを作成
+                      </button>
+                      <button
+                        onClick={() => setClickMode('marker')}
+                        className="flex-1 px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                      >
+                        目印を追加
+                      </button>
+                    </div>
+                  </div>
+                ) : clickMode === 'scouting' ? (
+                  // 下見メモ作成フォーム
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <button onClick={() => setClickMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+                      </button>
+                      <p className="text-xs font-bold text-gray-700">下見メモを作成</p>
+                    </div>
                     <input
                       type="text"
                       value={newAreaName}
@@ -598,9 +719,49 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
                     <button
                       onClick={handleCreateArea}
                       disabled={creating || !newAreaName.trim()}
-                      className="w-full px-3 py-1.5 text-xs bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50"
+                      className="w-full px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors disabled:opacity-50"
                     >
                       {creating ? '作成中...' : '作成'}
+                    </button>
+                  </div>
+                ) : (
+                  // 目印追加フォーム
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <button onClick={() => setClickMode(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+                      </button>
+                      <p className="text-xs font-bold text-gray-700">目印を追加</p>
+                    </div>
+                    <input
+                      type="text"
+                      value={markerLabel}
+                      onChange={(e) => setMarkerLabel(e.target.value)}
+                      placeholder="ラベル名（必須）"
+                      className="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddMarker() }}
+                    />
+                    {/* 色選択 */}
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <span className="text-xs text-gray-500">色:</span>
+                      {COLOR_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setMarkerColor(opt.value)}
+                          className={`w-6 h-6 rounded-full border-2 transition-all ${
+                            markerColor === opt.value ? 'border-gray-700 scale-110' : 'border-transparent hover:border-gray-300'
+                          }`}
+                          style={{ backgroundColor: opt.hex }}
+                          title={opt.label}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleAddMarker}
+                      disabled={markerSaving || !markerLabel.trim()}
+                      className="w-full px-3 py-1.5 text-xs bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    >
+                      {markerSaving ? '追加中...' : '追加'}
                     </button>
                   </div>
                 )}
@@ -623,6 +784,47 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
             }}
           />
         )}
+
+        {/* 目印ピン */}
+        {customMarkers.map((marker) => (
+          <MarkerF
+            key={`marker-${marker.id}`}
+            position={{ lat: marker.lat, lng: marker.lng }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 6,
+              fillColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue,
+              fillOpacity: 0.85,
+              strokeColor: '#ffffff',
+              strokeWeight: 1.5,
+            }}
+            onClick={() => { setSelectedMarker(marker.id); setSelectedArea(null); setSelectedHome(null) }}
+          >
+            {selectedMarker === marker.id && (
+              <InfoWindowF
+                position={{ lat: marker.lat, lng: marker.lng }}
+                onCloseClick={() => setSelectedMarker(null)}
+              >
+                <div className="min-w-[140px] p-1">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue }}
+                    />
+                    <p className="font-bold text-sm text-gray-800">{marker.label}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteMarker(marker.id)}
+                    disabled={markerDeletingId === marker.id}
+                    className="w-full px-3 py-1 text-xs text-red-500 border border-red-200 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {markerDeletingId === marker.id ? '削除中...' : '削除'}
+                  </button>
+                </div>
+              </InfoWindowF>
+            )}
+          </MarkerF>
+        ))}
 
         {/* しんごの実家 */}
         {homeLocations.shingo && (

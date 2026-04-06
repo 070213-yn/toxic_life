@@ -8,11 +8,20 @@ import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 const REALTIME_TABLES = ['scouting_areas']
 import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
-import type { HomeLocations, MapArea } from '@/app/(app)/map/page'
+import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
+
+// 目印ピンの色マッピング
+const MARKER_COLORS: Record<string, string> = {
+  blue: '#3B82F6',
+  green: '#22C55E',
+  orange: '#F97316',
+  pink: '#EC4899',
+}
 
 type Props = {
   areas: MapArea[]
   homeLocations: HomeLocations
+  customMarkers: CustomMarker[]
 }
 
 // profilesヘルパー（配列 or オブジェクトに対応）
@@ -52,7 +61,7 @@ function Avatar({ emoji, size = 20 }: { emoji: string; size?: number }) {
   )
 }
 
-export default function MapPageClient({ areas, homeLocations }: Props) {
+export default function MapPageClient({ areas, homeLocations, customMarkers }: Props) {
   useRealtimeRefresh(REALTIME_TABLES)
   const [showHomeModal, setShowHomeModal] = useState(false)
   const [focusedAreaId, setFocusedAreaId] = useState<string | null>(null)
@@ -83,6 +92,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
         <MapView
           areas={areas}
           homeLocations={homeLocations}
+          customMarkers={customMarkers}
           pinAreaId={pinAreaId}
           pinAreaName={pinArea?.name || null}
           focusAreaId={focusAreaId}
@@ -105,7 +115,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
 
       {/* PC: 右サイドバー */}
       <aside className="hidden md:flex flex-col w-80 bg-bg-card border-l border-primary-light/30 overflow-hidden">
-        <SidebarContent areas={areas} homeLocations={homeLocations} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={handlePinClick} onHomeClick={handleHomeClick} onUnpinnedClick={handleUnpinnedClick} />
+        <SidebarContent areas={areas} homeLocations={homeLocations} customMarkers={customMarkers} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={handlePinClick} onHomeClick={handleHomeClick} onUnpinnedClick={handleUnpinnedClick} onMarkerClick={(m) => setFocusedAreaId(`marker-${m.id}`)} />
       </aside>
 
       {/* モバイル: スライドアップ */}
@@ -114,7 +124,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
           <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarOpen(false)} />
           <div className="absolute bottom-0 left-0 right-0 bg-bg-card rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col animate-slide-up">
             <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-primary-light/40 rounded-full" /></div>
-            <SidebarContent areas={areas} homeLocations={homeLocations} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={(id) => { handlePinClick(id); setSidebarOpen(false) }} onHomeClick={(key) => { handleHomeClick(key); setSidebarOpen(false) }} onUnpinnedClick={(id) => { handleUnpinnedClick(id); setSidebarOpen(false) }} />
+            <SidebarContent areas={areas} homeLocations={homeLocations} customMarkers={customMarkers} pinnedCount={pinnedCount} focusedAreaId={focusedAreaId} onPinClick={(id) => { handlePinClick(id); setSidebarOpen(false) }} onHomeClick={(key) => { handleHomeClick(key); setSidebarOpen(false) }} onUnpinnedClick={(id) => { handleUnpinnedClick(id); setSidebarOpen(false) }} onMarkerClick={(m) => { setFocusedAreaId(`marker-${m.id}`); setSidebarOpen(false) }} />
           </div>
         </div>
       )}
@@ -125,9 +135,9 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
 }
 
 // サイドバー
-function SidebarContent({ areas, homeLocations, pinnedCount, focusedAreaId, onPinClick, onHomeClick, onUnpinnedClick }: {
-  areas: MapArea[]; homeLocations: HomeLocations; pinnedCount: number; focusedAreaId: string | null
-  onPinClick: (id: string) => void; onHomeClick: (key: 'shingo' | 'airi') => void; onUnpinnedClick: (id: string) => void
+function SidebarContent({ areas, homeLocations, customMarkers, pinnedCount, focusedAreaId, onPinClick, onHomeClick, onUnpinnedClick, onMarkerClick }: {
+  areas: MapArea[]; homeLocations: HomeLocations; customMarkers: CustomMarker[]; pinnedCount: number; focusedAreaId: string | null
+  onPinClick: (id: string) => void; onHomeClick: (key: 'shingo' | 'airi') => void; onUnpinnedClick: (id: string) => void; onMarkerClick: (marker: CustomMarker) => void
 }) {
   return (
     <>
@@ -209,6 +219,39 @@ function SidebarContent({ areas, homeLocations, pinnedCount, focusedAreaId, onPi
         })}
 
         {areas.length === 0 && <p className="text-xs text-text-sub text-center py-6">まだエリアがありません</p>}
+
+        {/* 目印セクション */}
+        {(areas.length > 0 || homeLocations.shingo || homeLocations.airi) && customMarkers.length > 0 && (
+          <div className="border-b border-primary-light/15 my-1.5" />
+        )}
+
+        {customMarkers.length > 0 && (
+          <>
+            <div className="px-1 pt-1 pb-0.5">
+              <p className="text-xs font-bold text-text-sub">目印</p>
+            </div>
+            {customMarkers.map((marker) => (
+              <button
+                key={marker.id}
+                onClick={() => onMarkerClick(marker)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
+                  focusedAreaId === `marker-${marker.id}` ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'
+                }`}
+              >
+                <span
+                  className="shrink-0 w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue }}
+                />
+                <p className="text-sm text-text truncate">{marker.label}</p>
+              </button>
+            ))}
+          </>
+        )}
+
+        {/* 目印追加のヒント */}
+        <div className="px-3 pt-2 pb-1">
+          <p className="text-[11px] text-text-sub/60 text-center">地図をクリックして目印を追加できます</p>
+        </div>
       </div>
     </>
   )

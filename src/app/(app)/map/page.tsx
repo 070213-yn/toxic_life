@@ -15,6 +15,15 @@ export type HomeLocations = {
   airi?: HomeLocation
 }
 
+// 目印ピンの型定義
+export type CustomMarker = {
+  id: string
+  lat: number
+  lng: number
+  label: string
+  color: 'blue' | 'green' | 'orange' | 'pink'
+}
+
 // マップ用のエリアデータ型
 export type MapArea = {
   id: string
@@ -49,6 +58,15 @@ export default async function MapPage() {
 
   const homeLocations: HomeLocations = (setting?.value as HomeLocations) || {}
 
+  // 目印ピンの取得
+  const { data: markersSetting } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'custom_markers')
+    .single()
+
+  const customMarkers: CustomMarker[] = (markersSetting?.value as { markers: CustomMarker[] })?.markers || []
+
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-screen bg-bg-card">
@@ -58,6 +76,7 @@ export default async function MapPage() {
       <MapPageClient
         areas={(areas as MapArea[]) || []}
         homeLocations={homeLocations}
+        customMarkers={customMarkers}
       />
     </Suspense>
   )
