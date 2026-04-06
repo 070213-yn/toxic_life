@@ -18,6 +18,7 @@ export default async function DashboardPage() {
     savingsResult,
     milestonesResult,
     settingsResult,
+    frierenResult,
     recentSavingsResult,
     recentTasksResult,
   ] = await Promise.all([
@@ -38,6 +39,13 @@ export default async function DashboardPage() {
       .from('settings')
       .select('*')
       .eq('key', 'general')
+      .single(),
+
+    // フリーレン3期の日付を取得
+    supabase
+      .from('settings')
+      .select('key, value')
+      .eq('key', 'frieren_date')
       .single(),
 
     // 直近の貯金記録（活動フィード用）
@@ -61,6 +69,9 @@ export default async function DashboardPage() {
 
   // 設定値から引越し日を取得
   const moveInDate = settingsResult.data?.value?.move_in_date as string | null ?? null
+
+  // フリーレン3期の日付を取得（value.value の形式）
+  const frierenDate = (frierenResult.data?.value as Record<string, unknown>)?.value as string | null ?? null
 
   // 貯金集計（しんご・あいり別）
   // profiles.display_name で振り分け
@@ -145,7 +156,7 @@ export default async function DashboardPage() {
       {/* メインコンテンツ */}
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* カウントダウン */}
-        <CountdownBanner moveInDate={moveInDate} />
+        <CountdownBanner moveInDate={moveInDate} frierenDate={frierenDate} />
 
         {/* 貯金プログレス */}
         <SavingsRing
