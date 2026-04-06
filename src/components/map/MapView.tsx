@@ -256,7 +256,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       setSelectedArea(null)
       setSelectedHome(null)
     }
-  }, [pinAreaId, pinPlacing, pinSaved])
+  }, [pinAreaId, pinPlacing, pinSaved, homePlacing, homeSaved])
 
   // 機能A: 新しい下見メモを作成
   const handleCreateArea = async () => {
