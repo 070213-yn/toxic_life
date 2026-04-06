@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskReactions } from '@/components/quests/TaskReactions'
@@ -127,6 +127,7 @@ export function TaskList({
 }
 
 // 個別タスクアイテム
+// チェック時にバウンスアニメーション、完了時にフェードアウト演出
 function TaskItem({
   task,
   totalSavings,
@@ -140,28 +141,45 @@ function TaskItem({
   onToggle: (task: Task) => void
   onDelete: (taskId: string) => void
 }) {
+  // チェック直後のバウンスアニメーション制御
+  const [justChecked, setJustChecked] = useState(false)
+
   // 貯金連動タスクの自動判定
   const isAutoAchieved =
     task.is_auto_savings && savingsGoal !== null && totalSavings >= savingsGoal
 
+  // チェック切り替え時にアニメーションを発火
+  const handleToggle = useCallback(() => {
+    if (!task.is_completed) {
+      setJustChecked(true)
+      // アニメーション終了後にフラグをリセット
+      setTimeout(() => setJustChecked(false), 400)
+    }
+    onToggle(task)
+  }, [task, onToggle])
+
   return (
     <div
-      className={`group flex items-center gap-3 py-2 px-3 rounded-xl transition-all duration-200 hover:bg-primary/5 ${
-        task.is_completed ? 'opacity-60' : ''
+      className={`group flex items-center gap-3 py-2 px-3 rounded-xl transition-all duration-300 hover:bg-primary/5 ${
+        task.is_completed ? 'opacity-50' : ''
       }`}
+      style={{
+        // 出現アニメーション
+        animation: 'fade-slide-up 0.3s ease-out both',
+      }}
     >
       {/* チェックボックス */}
       <button
-        onClick={() => onToggle(task)}
+        onClick={handleToggle}
         disabled={task.is_auto_savings}
         className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
           task.is_completed || isAutoAchieved
-            ? 'bg-success border-success scale-110'
+            ? 'bg-success border-success'
             : 'border-text-sub/30 hover:border-primary'
-        } ${task.is_auto_savings ? 'cursor-default' : 'cursor-pointer active:scale-90'}`}
+        } ${task.is_auto_savings ? 'cursor-default' : 'cursor-pointer active:scale-[0.85]'}`}
         style={{
           // チェック時のバウンスアニメーション
-          animation: task.is_completed ? 'check-bounce 0.3s ease-out' : 'none',
+          animation: justChecked ? 'check-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
         }}
       >
         {(task.is_completed || isAutoAchieved) && (
@@ -184,7 +202,7 @@ function TaskItem({
       {/* タスク内容 */}
       <div className="flex-1 min-w-0">
         <p
-          className={`text-sm leading-snug ${
+          className={`text-sm leading-snug transition-all duration-300 ${
             task.is_completed ? 'line-through text-text-sub' : 'text-text'
           }`}
         >
@@ -223,7 +241,7 @@ function TaskItem({
       {/* 削除ボタン（ホバー時表示） */}
       <button
         onClick={() => onDelete(task.id)}
-        className="shrink-0 opacity-0 group-hover:opacity-100 text-text-sub hover:text-accent transition-all p-1"
+        className="shrink-0 opacity-0 group-hover:opacity-100 text-text-sub hover:text-accent transition-all duration-200 p-1 active:scale-[0.97]"
         aria-label="タスクを削除"
       >
         <svg

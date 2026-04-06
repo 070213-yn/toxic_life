@@ -21,14 +21,24 @@ export default function MilestoneMap({ milestones }: Props) {
 
   if (milestones.length === 0) {
     return (
-      <div className="rounded-2xl bg-bg-card p-6 shadow-sm text-center">
-        <p className="text-text-sub text-sm">マイルストーンはまだありません</p>
+      <div className="rounded-2xl bg-bg-card p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-text mb-4">ロードマップ</h2>
+        <div className="flex flex-col items-center py-6">
+          <div className="bg-primary-light/20 rounded-full p-4 mb-3">
+            <svg className="w-10 h-10 text-text-sub/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l2 2 4-4" />
+            </svg>
+          </div>
+          <p className="text-text-sub text-sm">マイルストーンはまだないよ</p>
+          <p className="text-text-sub/60 text-xs mt-1">クエストページから冒険を始めよう！</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="rounded-2xl bg-bg-card p-6 shadow-sm">
+    <div className="rounded-2xl bg-bg-card p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
       <h2 className="text-lg font-bold text-text mb-4">ロードマップ</h2>
 
       {/* 横スクロールコンテナ */}
@@ -43,7 +53,7 @@ export default function MilestoneMap({ milestones }: Props) {
               <div key={milestone.id} className="flex items-start">
                 {/* マイルストーンノード */}
                 <div className="flex flex-col items-center w-28">
-                  {/* アイコン円 */}
+                  {/* アイコン円 - 進行中はgentle-pulse、完了はcheck-bounce */}
                   <button
                     onClick={() => toggleExpand(milestone.id)}
                     className={`
@@ -52,15 +62,28 @@ export default function MilestoneMap({ milestones }: Props) {
                       ${isCompleted
                         ? 'bg-success text-white shadow-md'
                         : isCurrent
-                          ? 'bg-primary text-white shadow-lg animate-pulse'
+                          ? 'bg-primary text-white shadow-lg'
                           : 'bg-gray-200 text-gray-400'
                       }
-                      hover:-translate-y-0.5 hover:shadow-lg
+                      hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97]
                     `}
+                    style={{
+                      // 進行中マイルストーンにgentle-pulseアニメーション
+                      animation: isCurrent
+                        ? 'gentle-pulse 2.5s ease-in-out infinite'
+                        : 'none',
+                    }}
                   >
                     {isCompleted ? (
-                      // チェックマーク
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      // チェックマーク - check-bounceアニメーション
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                        style={{ animation: 'check-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (

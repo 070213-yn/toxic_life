@@ -45,11 +45,11 @@ export function CountdownDisplay({ targetDate }: { targetDate: string }) {
   if (!mounted || !targetDate) {
     return (
       <div className="text-center">
-        <p className="text-text-sub text-sm tracking-widest uppercase mb-4">
+        <p className="text-sm tracking-widest uppercase mb-4" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>
           引越しまで
         </p>
         <div className="flex items-baseline justify-center gap-2">
-          <span className="font-[family-name:var(--font-dm-sans)] text-7xl md:text-9xl font-bold text-primary/30">
+          <span className="font-[family-name:var(--font-dm-sans)] text-7xl md:text-9xl font-bold" style={{ color: 'var(--countdown-primary, var(--primary))', opacity: 0.3 }}>
             --
           </span>
         </div>
@@ -62,7 +62,7 @@ export function CountdownDisplay({ targetDate }: { targetDate: string }) {
   return (
     <div className="text-center">
       {/* ラベル */}
-      <p className="text-text-sub text-sm tracking-[0.3em] uppercase mb-6">
+      <p className="text-sm tracking-[0.3em] uppercase mb-6" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>
         {isPast ? '新生活スタート！' : '引越しまで'}
       </p>
 
@@ -72,7 +72,7 @@ export function CountdownDisplay({ targetDate }: { targetDate: string }) {
           <p className="font-[family-name:var(--font-dm-sans)] text-6xl md:text-8xl font-bold text-success">
             0
           </p>
-          <p className="text-text-sub text-lg">おめでとう！新生活の始まりだね</p>
+          <p className="text-lg" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>おめでとう！新生活の始まりだね</p>
         </div>
       ) : (
         // カウントダウン表示
@@ -89,7 +89,7 @@ export function CountdownDisplay({ targetDate }: { targetDate: string }) {
 
       {/* 目標日表示 */}
       {targetDate && (
-        <p className="mt-6 text-text-sub text-xs tracking-wider">
+        <p className="mt-6 text-xs tracking-wider" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>
           {new Date(targetDate).toLocaleDateString('ja-JP', {
             year: 'numeric',
             month: 'long',
@@ -102,19 +102,23 @@ export function CountdownDisplay({ targetDate }: { targetDate: string }) {
 }
 
 // 個別の時間ユニット（日、時間、分、秒）
+// 夜間はCSS変数で色が白系に切り替わる
 function TimeUnit({ value, label, large }: { value: number; label: string; large?: boolean }) {
   return (
     <div className="flex flex-col items-center">
       <span
         className={`font-[family-name:var(--font-dm-sans)] font-bold tabular-nums leading-none ${
-          large
-            ? 'text-6xl md:text-9xl text-primary'
-            : 'text-4xl md:text-7xl text-text'
+          large ? 'text-6xl md:text-9xl' : 'text-4xl md:text-7xl'
         }`}
+        style={{
+          color: large
+            ? 'var(--countdown-primary, var(--primary))'
+            : 'var(--countdown-text, var(--text))',
+        }}
       >
         {String(value).padStart(2, '0')}
       </span>
-      <span className="text-text-sub text-xs md:text-sm mt-2 tracking-wider">
+      <span className="text-xs md:text-sm mt-2 tracking-wider" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>
         {label}
       </span>
     </div>
@@ -124,7 +128,10 @@ function TimeUnit({ value, label, large }: { value: number; label: string; large
 // コロン区切り（アニメーション付き）
 function Separator() {
   return (
-    <span className="font-[family-name:var(--font-dm-sans)] text-3xl md:text-5xl text-primary/40 mb-6 animate-pulse">
+    <span
+      className="font-[family-name:var(--font-dm-sans)] text-3xl md:text-5xl mb-6 animate-pulse"
+      style={{ color: 'var(--countdown-primary, var(--primary))', opacity: 0.4 }}
+    >
       :
     </span>
   )

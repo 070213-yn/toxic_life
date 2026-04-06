@@ -3,11 +3,15 @@
 import { useMemo } from 'react'
 import type { Saving } from '@/lib/types'
 
-const GOAL_AMOUNT = 1000000 // 目標: 100万円
+type Props = {
+  savings: Saving[]
+  goal: number
+  moveInDate: string | null // "YYYY-MM-DD" 形式
+}
 
 // 月別サマリーカード
 // 今月の貯金額、個別の貯金額、月平均、目標達成に必要な月額を表示
-export function MonthlySummary({ savings }: { savings: Saving[] }) {
+export function MonthlySummary({ savings, goal, moveInDate }: Props) {
   const summary = useMemo(() => {
     const now = new Date()
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -32,13 +36,33 @@ export function MonthlySummary({ savings }: { savings: Saving[] }) {
     const monthCount = Math.max(months.size, 1)
     const monthlyAvg = Math.round(grandTotal / monthCount)
 
+    // 引越し日までの残り月数を計算
+    let remainingMonths: number | null = null
+    if (moveInDate) {
+      const target = new Date(moveInDate)
+      // 年と月の差分を計算
+      remainingMonths =
+        (target.getFullYear() - now.getFullYear()) * 12 +
+        (target.getMonth() - now.getMonth())
+      // 最低1ヶ月
+      if (remainingMonths < 1) remainingMonths = 1
+    }
+
     // 目標達成までに必要な月額
-    const remaining = Math.max(GOAL_AMOUNT - grandTotal, 0)
-    // 6ヶ月以内に達成するための月額を表示
-    const neededPerMonth = remaining > 0 ? Math.ceil(remaining / 6) : 0
+    const remaining = Math.max(goal - grandTotal, 0)
+    let neededPerMonth = 0
+    if (remaining > 0) {
+      if (remainingMonths) {
+        // 引越し日が設定されていれば、残り月数で割る
+        neededPerMonth = Math.ceil(remaining / remainingMonths)
+      } else {
+        // 設定がなければ6ヶ月で計算（フォールバック）
+        neededPerMonth = Math.ceil(remaining / 6)
+      }
+    }
 
     // 進捗率（パーセント）
-    const progressPercent = Math.min(Math.round((grandTotal / GOAL_AMOUNT) * 100), 100)
+    const progressPercent = Math.min(Math.round((grandTotal / goal) * 100), 100)
 
     return {
       thisMonthTotal,
@@ -48,9 +72,10 @@ export function MonthlySummary({ savings }: { savings: Saving[] }) {
       monthlyAvg,
       remaining,
       neededPerMonth,
+      remainingMonths,
       progressPercent,
     }
-  }, [savings])
+  }, [savings, goal, moveInDate])
 
   return (
     <div className="space-y-4">
@@ -78,7 +103,9 @@ export function MonthlySummary({ savings }: { savings: Saving[] }) {
         </div>
         <div className="flex justify-between mt-1.5">
           <span className="text-xs text-text-sub">0円</span>
-          <span className="text-xs text-success font-medium">目標 100万円</span>
+          <span className="text-xs text-success font-medium">
+            目標 {goal.toLocaleString()}円
+          </span>
         </div>
       </div>
 
@@ -101,17 +128,29 @@ export function MonthlySummary({ savings }: { savings: Saving[] }) {
           </div>
         </div>
 
-        {/* 月平均 */}
+        {/* 月平均 & 必要額 */}
         <div className="bg-bg-card rounded-xl p-4 shadow-sm border border-primary-light/20">
-          <p className="text-xs text-text-sub mb-1">月平均</p>
+          <p className="text-xs text-text-sub mb-1">月平均（実績）</p>
           <p className="text-xl font-bold text-text font-[family-name:var(--font-dm-sans)]">
             {summary.monthlyAvg.toLocaleString()}
             <span className="text-xs font-normal text-text-sub ml-0.5">円</span>
           </p>
           {summary.remaining > 0 && (
-            <p className="text-xs text-text-sub mt-2">
-              あと<span className="font-medium text-accent-warm"> {summary.remaining.toLocaleString()}円</span>
-            </p>
+            <div className="mt-2 space-y-0.5">
+              <p className="text-xs text-text-sub">
+                あと
+                <span className="font-medium text-accent-warm"> {summary.remaining.toLocaleString()}円</span>
+              </p>
+              {summary.neededPerMonth > 0 && (
+                <p className="text-xs text-text-sub">
+                  必要月額
+                  <span className="font-medium text-primary"> {summary.neededPerMonth.toLocaleString()}円</span>
+                  {summary.remainingMonths && (
+                    <span className="text-text-sub/60">（残{summary.remainingMonths}ヶ月）</span>
+                  )}
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>

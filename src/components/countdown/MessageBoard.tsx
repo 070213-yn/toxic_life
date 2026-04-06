@@ -13,7 +13,7 @@ type Props = {
 export function MessageBoard({ initialShingo, initialAiri }: Props) {
   return (
     <div className="w-full max-w-md mx-auto space-y-3">
-      <p className="text-center text-text-sub text-xs tracking-widest uppercase mb-2">
+      <p className="text-center text-xs tracking-widest uppercase mb-2" style={{ color: 'var(--countdown-text-sub, var(--text-sub))' }}>
         ひとことメッセージ
       </p>
       <MessageCard

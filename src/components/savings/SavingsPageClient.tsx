@@ -7,9 +7,15 @@ import { MonthlySummary } from './MonthlySummary'
 import { SavingsTable } from './SavingsTable'
 import { AddSavingForm } from './AddSavingForm'
 
+type Props = {
+  initialSavings: Saving[]
+  goal: number
+  moveInDate: string | null
+}
+
 // 貯金管理ページのクライアント側ルートコンポーネント
 // サーバーから受け取った初期データを各子コンポーネントに配信する
-export function SavingsPageClient({ initialSavings }: { initialSavings: Saving[] }) {
+export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
   const [showForm, setShowForm] = useState(false)
 
   return (
@@ -44,10 +50,10 @@ export function SavingsPageClient({ initialSavings }: { initialSavings: Saving[]
         )}
 
         {/* 月別サマリーカード */}
-        <MonthlySummary savings={initialSavings} />
+        <MonthlySummary savings={initialSavings} goal={goal} moveInDate={moveInDate} />
 
         {/* 貯金推移チャート */}
-        <SavingsChart savings={initialSavings} />
+        <SavingsChart savings={initialSavings} goal={goal} />
 
         {/* 貯金記録一覧 */}
         <SavingsTable savings={initialSavings} />

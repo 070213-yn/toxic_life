@@ -66,11 +66,18 @@ export default async function DashboardPage() {
   const savings: Saving[] = savingsResult.data ?? []
   const milestones: Milestone[] = milestonesResult.data ?? []
 
-  // 引越し日を取得（seed.sqlでは value が文字列、UIからは value.date の形式）
+  // 引越し日を取得
+  // seed.sqlでは value が JSONBの文字列（例: "2027-07-15"）
+  // UIからは { date: "2027-07-15" } の形式で保存される
   const moveInRaw = moveInResult.data?.value
-  const moveInDate = typeof moveInRaw === 'string'
-    ? moveInRaw.replace(/"/g, '')
-    : (moveInRaw as Record<string, unknown>)?.date as string | null ?? null
+  let moveInDate: string | null = null
+  if (typeof moveInRaw === 'string') {
+    // seed.sql形式: JSONBに文字列が直接入っている
+    moveInDate = moveInRaw
+  } else if (moveInRaw && typeof moveInRaw === 'object') {
+    // UI保存形式: { date: "..." }
+    moveInDate = (moveInRaw as Record<string, unknown>).date as string | null ?? null
+  }
 
   // 貯金集計（しんご・あいり別）
   // profiles.display_name で振り分け
@@ -143,45 +150,69 @@ export default async function DashboardPage() {
         .slice(0, 5)
     : []
 
+  // 時間帯に応じた挨拶を生成
+  const hour = new Date().getHours()
+  const greeting = hour >= 5 && hour < 12
+    ? 'おはよう'
+    : hour >= 12 && hour < 18
+      ? 'こんにちは'
+      : 'こんばんは'
+
+  // 今日の日付を日本語フォーマットで表示
+  const todayStr = new Date().toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  })
+
   return (
     <div className="min-h-screen bg-bg">
-      {/* ヘッダー */}
-      <header className="sticky top-0 z-10 bg-bg/80 backdrop-blur-md border-b border-primary-light/30">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-text">
-            ふたりの旅路
-          </h1>
-          <span className="text-xs text-text-sub">同棲準備トラッカー</span>
-        </div>
+      {/* ヘッダー: 挨拶と今日の日付 */}
+      <header className="px-6 pt-6 pb-2 max-w-5xl mx-auto">
+        <p className="text-lg font-bold text-text">
+          {greeting}！
+        </p>
+        <p className="text-sm text-text-sub mt-0.5">{todayStr}</p>
       </header>
 
-      {/* メインコンテンツ */}
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}
+      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6">
         {/* 上段: カウントダウン + 貯金プログレス + 活動フィード */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* カウントダウン */}
-          <CountdownBanner moveInDate={moveInDate} />
+          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
+            <CountdownBanner moveInDate={moveInDate} />
+          </div>
 
           {/* 貯金プログレス */}
-          <SavingsRing
-            totalSavings={totalSavings}
-            shingoSavings={shingoSavings}
-            airiSavings={airiSavings}
-            goal={savingsGoal}
-          />
+          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
+            <SavingsRing
+              totalSavings={totalSavings}
+              shingoSavings={shingoSavings}
+              airiSavings={airiSavings}
+              goal={savingsGoal}
+            />
+          </div>
 
           {/* 活動フィード */}
-          <ActivityFeed activities={recentActivities} />
+          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
+            <ActivityFeed activities={recentActivities} />
+          </div>
         </div>
 
         {/* ロードマップ（全幅） */}
-        <MilestoneMap milestones={milestones} />
+        <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '300ms' }}>
+          <MilestoneMap milestones={milestones} />
+        </div>
 
         {/* 下段: TODO */}
-        <TodoHighlight tasks={highlightTasks} />
+        <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '400ms' }}>
+          <TodoHighlight tasks={highlightTasks} />
+        </div>
 
-        {/* 下部の余白 */}
-        <div className="h-8" />
+        {/* 下部の余白（モバイルはフッターナビの分を確保） */}
+        <div className="h-4" />
       </main>
     </div>
   )

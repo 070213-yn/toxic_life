@@ -333,9 +333,24 @@ export function SavingsTable({ savings }: { savings: Saving[] }) {
 
       {/* 記録がない場合 */}
       {filtered.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-text-sub text-sm">記録がまだありません</p>
-          <p className="text-text-sub/60 text-xs mt-1">上の「+ 記録する」ボタンから追加してみましょう</p>
+        <div className="text-center py-10">
+          {savings.length === 0 ? (
+            <>
+              {/* 全体で0件（まだ一度も記録していない） */}
+              <p className="text-4xl mb-3">&#x1F331;</p>
+              <p className="text-text font-medium text-sm">まだ記録がないよ</p>
+              <p className="text-text-sub/70 text-xs mt-1.5 leading-relaxed">
+                小さな金額でも大丈夫！<br />
+                「+ 記録する」から最初の一歩を始めよう
+              </p>
+            </>
+          ) : (
+            <>
+              {/* フィルター結果が0件 */}
+              <p className="text-text-sub text-sm">この条件に合う記録はありません</p>
+              <p className="text-text-sub/60 text-xs mt-1">フィルターを変更してみてください</p>
+            </>
+          )}
         </div>
       )}
 

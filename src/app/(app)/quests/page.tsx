@@ -8,7 +8,7 @@ export default async function QuestsPage() {
   const supabase = await createClient()
 
   // マイルストーン一覧をタスク含めて取得（sort_order順）
-  const { data: milestones } = await supabase
+  const { data: milestones, error: msError } = await supabase
     .from('milestones')
     .select('*, tasks(*)')
     .order('sort_order', { ascending: true })
@@ -28,6 +28,21 @@ export default async function QuestsPage() {
         a.sort_order - b.sort_order
     ),
   }))
+
+  // データ取得失敗時のフォールバック
+  if (msError && !milestones) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+        <div className="bg-bg-card rounded-2xl p-8 shadow-sm border border-primary-light/30 text-center max-w-sm">
+          <svg className="w-12 h-12 mx-auto mb-4 text-text-sub/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <p className="text-text-sub text-sm">データの読み込みに失敗しました</p>
+          <p className="text-text-sub/60 text-xs mt-1">ページをリロードしてみてね</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-bg">

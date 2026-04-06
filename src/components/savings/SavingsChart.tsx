@@ -14,8 +14,6 @@ import {
 } from 'recharts'
 import type { Saving } from '@/lib/types'
 
-const GOAL_AMOUNT = 1000000 // 目標: 100万円
-
 // 金額を「万円」表示にフォーマット
 function formatYen(value: number) {
   if (value >= 10000) {
@@ -68,18 +66,17 @@ function aggregateByMonth(savings: Saving[]) {
 }
 
 // 現在のペースで目標に到達する月を予測
-function predictGoalDate(data: { fullMonth: string; 合計: number }[]) {
+function predictGoalDate(data: { fullMonth: string; 合計: number }[], goalAmount: number) {
   if (data.length < 2) return null
 
   const latest = data[data.length - 1]
-  const first = data[0]
   const totalMonths = data.length
   const monthlyAvg = latest.合計 / totalMonths
 
   if (monthlyAvg <= 0) return null
-  if (latest.合計 >= GOAL_AMOUNT) return '達成済み!'
+  if (latest.合計 >= goalAmount) return '達成済み!'
 
-  const remainingMonths = Math.ceil((GOAL_AMOUNT - latest.合計) / monthlyAvg)
+  const remainingMonths = Math.ceil((goalAmount - latest.合計) / monthlyAvg)
   const lastDate = new Date(latest.fullMonth + '-01')
   lastDate.setMonth(lastDate.getMonth() + remainingMonths)
 
@@ -103,9 +100,9 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 // 月別貯金推移エリアチャート
-export function SavingsChart({ savings }: { savings: Saving[] }) {
+export function SavingsChart({ savings, goal = 1000000 }: { savings: Saving[]; goal?: number }) {
   const chartData = useMemo(() => aggregateByMonth(savings), [savings])
-  const prediction = useMemo(() => predictGoalDate(chartData), [chartData])
+  const prediction = useMemo(() => predictGoalDate(chartData, goal), [chartData, goal])
 
   if (chartData.length === 0) {
     return (
@@ -167,14 +164,14 @@ export function SavingsChart({ savings }: { savings: Saving[] }) {
             wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
           />
 
-          {/* 目標ライン: 100万円 */}
+          {/* 目標ライン */}
           <ReferenceLine
-            y={GOAL_AMOUNT}
+            y={goal}
             stroke="#A8D8B9"
             strokeDasharray="6 4"
             strokeWidth={2}
             label={{
-              value: '目標 100万円',
+              value: `目標 ${formatYen(goal)}円`,
               position: 'insideTopRight',
               fill: '#A8D8B9',
               fontSize: 11,

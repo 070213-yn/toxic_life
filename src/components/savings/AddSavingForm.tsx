@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import confetti from 'canvas-confetti'
 
 // 貯金記録の追加フォーム
 // 金額・日付・メモを入力して保存する。user_idは認証情報から自動セット
+// 保存成功時にconfetti演出と成功メッセージを表示
 export function AddSavingForm({ onClose }: { onClose: () => void }) {
   const router = useRouter()
   const { user } = useAuth()
@@ -19,10 +21,26 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
   const [recordedDate, setRecordedDate] = useState(today)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+
+  // 小さなconfetti演出を発射
+  const fireConfetti = useCallback(() => {
+    // パステルカラーのconfetti（アプリのテーマに合わせて）
+    confetti({
+      particleCount: 60,
+      spread: 70,
+      origin: { y: 0.7 },
+      colors: ['#B8A9E8', '#FFB5C2', '#A8D8B9', '#FFD6A0', '#E8E0FF'],
+      scalar: 0.8,
+      gravity: 1.2,
+      ticks: 150,
+    })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccessMessage('')
 
     if (!user) {
       setError('ログインが必要です')
@@ -50,9 +68,24 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
       return
     }
 
-    // 保存成功 → ページデータを再取得してフォームを閉じる
+    // 保存成功 → confetti演出 & 成功メッセージ表示
+    fireConfetti()
+    setSuccessMessage('貯金を記録したよ！')
+    setSaving(false)
+
+    // フォームをリセット
+    setAmount('')
+    setMemo('')
+    setRecordedDate(today)
+
+    // ページデータを再取得
     router.refresh()
-    onClose()
+
+    // 3秒後にメッセージを消してフォームを閉じる
+    setTimeout(() => {
+      setSuccessMessage('')
+      onClose()
+    }, 3000)
   }
 
   // 金額入力時にカンマ区切りで表示
@@ -68,9 +101,16 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-bg-card rounded-2xl p-5 shadow-md border border-primary-light/30"
+      className="bg-bg-card rounded-2xl p-5 shadow-md border border-primary-light/30 relative overflow-hidden"
     >
       <h3 className="text-base font-bold text-text mb-4">貯金を記録する</h3>
+
+      {/* 成功メッセージ */}
+      {successMessage && (
+        <div className="mb-4 px-4 py-3 bg-success/15 border border-success/30 rounded-xl text-center animate-[slideDown_0.3s_ease-out]">
+          <p className="text-sm font-medium text-success">{successMessage}</p>
+        </div>
+      )}
 
       {/* 金額入力 */}
       <div className="mb-4">

@@ -12,7 +12,8 @@ type Props = {
 }
 
 // カウントアップアニメーション用フック
-function useCountUp(target: number, duration: number = 800) {
+// keyが変わるとアニメーションが再スタートする
+function useCountUp(target: number, duration: number = 800, key?: number) {
   const [value, setValue] = useState(0)
   const frameRef = useRef<number>(0)
 
@@ -30,7 +31,7 @@ function useCountUp(target: number, duration: number = 800) {
     }
     frameRef.current = requestAnimationFrame(animate)
     return () => cancelAnimationFrame(frameRef.current)
-  }, [target, duration])
+  }, [target, duration, key])
 
   return value
 }
@@ -45,8 +46,10 @@ export default function SavingsRing({
 }: Props) {
   const router = useRouter()
   const percentage = Math.min((totalSavings / goal) * 100, 100)
-  const displayAmount = useCountUp(totalSavings)
-  const displayPercent = useCountUp(Math.round(percentage))
+  // アニメーション再生キー（保存後にインクリメントして再生トリガー）
+  const [animKey, setAnimKey] = useState(0)
+  const displayAmount = useCountUp(totalSavings, 800, animKey)
+  const displayPercent = useCountUp(Math.round(percentage), 800, animKey)
 
   // 目標金額の編集状態
   const [isEditingGoal, setIsEditingGoal] = useState(false)
@@ -54,9 +57,19 @@ export default function SavingsRing({
   const [isSavingGoal, setIsSavingGoal] = useState(false)
   const goalInputRef = useRef<HTMLInputElement>(null)
 
+  // 金額入力時のカンマ区切りフォーマット
+  const handleGoalAmountChange = useCallback((value: string) => {
+    const num = value.replace(/[^0-9]/g, '')
+    if (num) {
+      setEditGoalValue(parseInt(num, 10).toLocaleString())
+    } else {
+      setEditGoalValue('')
+    }
+  }, [])
+
   // 目標金額の編集を開始
   const startEditingGoal = useCallback(() => {
-    setEditGoalValue(String(goal))
+    setEditGoalValue(goal.toLocaleString())
     setIsEditingGoal(true)
     setTimeout(() => goalInputRef.current?.focus(), 50)
   }, [goal])
@@ -81,6 +94,8 @@ export default function SavingsRing({
       return
     }
     setIsEditingGoal(false)
+    // リングのアニメーションを再生
+    setAnimKey((k) => k + 1)
     router.refresh()
   }, [editGoalValue, router])
 
@@ -105,8 +120,8 @@ export default function SavingsRing({
   const airiPercent = goal > 0 ? (airiSavings / goal) * 100 : 0
 
   return (
-    <div className="flex flex-col items-center gap-6 rounded-2xl bg-bg-card p-6 shadow-sm">
-      {/* プログレスリング */}
+    <div className="flex flex-col items-center gap-6 rounded-2xl bg-bg-card p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+      {/* プログレスリング - SVGストロークアニメーション */}
       <div className="relative w-48 h-48">
         <svg
           className="w-full h-full -rotate-90"
@@ -122,7 +137,7 @@ export default function SavingsRing({
             strokeWidth="14"
             opacity="0.4"
           />
-          {/* プログレスの円 */}
+          {/* プログレスの円 - なめらかなストロークアニメーション */}
           <circle
             cx="100"
             cy="100"
@@ -133,21 +148,29 @@ export default function SavingsRing({
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
-            className="transition-all duration-[800ms] ease-out"
+            style={{
+              transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
           />
         </svg>
         {/* 中央のテキスト */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-extrabold text-text">
+          <span
+            className="text-2xl font-extrabold text-text"
+            style={{ animation: 'count-up-glow 1.5s ease-out' }}
+          >
             {displayPercent}%
           </span>
           <span className="text-xs text-text-sub mt-1">達成</span>
         </div>
       </div>
 
-      {/* 貯金額表示 */}
+      {/* 貯金額表示 - カウントアップグロウエフェクト */}
       <div className="text-center">
-        <p className="text-3xl font-extrabold text-text">
+        <p
+          className="text-3xl font-extrabold text-text"
+          style={{ animation: 'count-up-glow 1.5s ease-out 0.3s both' }}
+        >
           &yen;{displayAmount.toLocaleString()}
         </p>
         {/* 目標金額（クリックで編集可能） */}
@@ -159,7 +182,7 @@ export default function SavingsRing({
               type="text"
               inputMode="numeric"
               value={editGoalValue}
-              onChange={(e) => setEditGoalValue(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={(e) => handleGoalAmountChange(e.target.value)}
               onKeyDown={handleGoalKeyDown}
               disabled={isSavingGoal}
               className="w-28 px-2 py-0.5 text-sm text-center rounded-md border border-primary/30 bg-white/80 text-text focus:outline-none focus:ring-1 focus:ring-primary/40"

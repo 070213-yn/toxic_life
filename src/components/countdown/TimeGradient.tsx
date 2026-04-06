@@ -36,15 +36,36 @@ export function TimeGradient() {
     return () => clearInterval(interval)
   }, [])
 
+  // 夜間（19〜4時）かどうかを判定
+  const [isNight, setIsNight] = useState(false)
+
+  useEffect(() => {
+    const checkNight = () => {
+      const h = new Date().getHours()
+      setIsNight(h >= 19 || h < 5)
+    }
+    checkNight()
+    const nightCheck = setInterval(checkNight, 60000)
+    return () => clearInterval(nightCheck)
+  }, [])
+
   return (
-    <div
-      className="absolute inset-0 transition-all duration-[3000ms]"
-      style={{ background: gradient }}
-    >
-      {/* 装飾的な光のオーブ */}
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-primary/10 blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-accent/10 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 right-1/3 w-32 h-32 rounded-full bg-accent-warm/10 blur-2xl animate-pulse" style={{ animationDelay: '2s' }} />
-    </div>
+    <>
+      {/* 夜間は親要素にdata属性を設定し、テキスト色を白系に切り替えるCSS変数を上書き */}
+      {isNight && (
+        <style>{`
+          .countdown-container { --countdown-text: #F0EAF8; --countdown-text-sub: #C0B8D8; --countdown-primary: #D4C8F0; }
+        `}</style>
+      )}
+      <div
+        className="absolute inset-0 transition-all duration-[3000ms]"
+        style={{ background: gradient }}
+      >
+        {/* 装飾的な光のオーブ */}
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-primary/10 blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-accent/10 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 right-1/3 w-32 h-32 rounded-full bg-accent-warm/10 blur-2xl animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+    </>
   )
 }

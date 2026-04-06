@@ -125,7 +125,11 @@ export function MilestoneCard({ milestone, totalSavings }: Props) {
       {showConfetti && <ConfettiEffect />}
 
       <div
-        className={`rounded-2xl border shadow-sm overflow-hidden transition-all duration-300 ${statusStyles}`}
+        className={`rounded-2xl border shadow-sm overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${statusStyles}`}
+        style={{
+          // 進行中のマイルストーンにgentle-pulseアニメーション
+          animation: isInProgress ? 'gentle-pulse 2.5s ease-in-out infinite' : 'none',
+        }}
       >
         {/* ヘッダー部分 */}
         {isEditing ? (
@@ -307,10 +311,13 @@ export function MilestoneCard({ milestone, totalSavings }: Props) {
                 </div>
                 <div className="h-2 bg-text-sub/10 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
                       isCompleted ? 'bg-success' : 'bg-primary'
                     }`}
-                    style={{ width: `${progress * 100}%` }}
+                    style={{
+                      width: `${progress * 100}%`,
+                      animation: 'bar-fill 0.8s ease-out',
+                    }}
                   />
                 </div>
               </div>
@@ -318,10 +325,12 @@ export function MilestoneCard({ milestone, totalSavings }: Props) {
           </button>
         )}
 
-        {/* 展開コンテンツ（タスクリスト） */}
+        {/* 展開コンテンツ（タスクリスト） - スムーズなアコーディオン */}
         <div
-          className={`overflow-hidden transition-all duration-300 ${
-            expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+          className={`overflow-hidden transition-all ease-out ${
+            expanded
+              ? 'max-h-[2000px] opacity-100 duration-500'
+              : 'max-h-0 opacity-0 duration-300'
           }`}
         >
           <div className="px-5 pb-5 border-t border-text-sub/5">

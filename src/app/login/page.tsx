@@ -1,6 +1,6 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
+// 注意: クライアントコンポーネントでは dynamic export は無効のため削除済み
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
