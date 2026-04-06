@@ -3,13 +3,18 @@
 import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Milestone } from '@/lib/types'
+
+// リアルタイム監視対象テーブル（ダッシュボード用）
+const REALTIME_TABLES = ['tasks', 'savings', 'milestones']
 
 type Props = {
   milestone: Milestone | null
 }
 
 export default function TodoHighlight({ milestone }: Props) {
+  useRealtimeRefresh(REALTIME_TABLES)
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [justCheckedId, setJustCheckedId] = useState<string | null>(null)

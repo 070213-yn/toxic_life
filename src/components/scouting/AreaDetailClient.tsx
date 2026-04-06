@@ -10,10 +10,14 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { findRentData } from '@/lib/rent-data'
 import type { ScoutingArea, ScoutingPhoto } from '@/lib/types'
 import RatingSection from './RatingSection'
 import CommentSection from './CommentSection'
+
+// リアルタイム監視対象テーブル（エリア詳細ページ用）
+const REALTIME_TABLES = ['scouting_photos', 'scouting_ratings', 'scouting_comments', 'scouting_areas']
 
 type Props = {
   area: ScoutingArea
@@ -35,6 +39,7 @@ function useSaveToast() {
 }
 
 export default function AreaDetailClient({ area }: Props) {
+  useRealtimeRefresh(REALTIME_TABLES)
   const router = useRouter()
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)

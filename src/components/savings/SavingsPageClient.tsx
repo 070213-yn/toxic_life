@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Saving } from '@/lib/types'
+
+// リアルタイム監視対象テーブル（貯金ページ用）
+const REALTIME_TABLES = ['savings']
 import { SavingsChart } from './SavingsChart'
 import { MonthlySummary } from './MonthlySummary'
 import { SavingsTable } from './SavingsTable'
@@ -16,6 +20,7 @@ type Props = {
 // 貯金管理ページのクライアント側ルートコンポーネント
 // サーバーから受け取った初期データを各子コンポーネントに配信する
 export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
+  useRealtimeRefresh(REALTIME_TABLES)
   const [showForm, setShowForm] = useState(false)
 
   return (

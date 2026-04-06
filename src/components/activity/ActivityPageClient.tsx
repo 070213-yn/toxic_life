@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Saving, Task } from '@/lib/types'
+
+// リアルタイム監視対象テーブル（履歴ページ用）
+const REALTIME_TABLES = ['savings', 'tasks']
 
 // アクティビティの種類
 type ActivityType = 'saving' | 'task'
@@ -97,6 +101,7 @@ type Props = {
 }
 
 export function ActivityPageClient({ savings, completedTasks }: Props) {
+  useRealtimeRefresh(REALTIME_TABLES)
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [personFilter, setPersonFilter] = useState<PersonFilter>('all')
 
