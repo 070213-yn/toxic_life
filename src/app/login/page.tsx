@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 // ユーザー定義（メールアドレスは裏で固定）
 const USERS = [
   { name: 'しんご', email: 'oshin5roroa@gmail.com', emoji: '🎮' },
-  { name: 'あいり', email: '', emoji: '🎀' },
+  { name: 'あいり', email: 'airi0210.tiara1111@gmail.com', emoji: '🎀' },
 ]
 
 export default function LoginPage() {
