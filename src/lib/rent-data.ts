@@ -174,6 +174,18 @@ export const RENT_DATA: Record<string, RentInfo> = {
   '下永谷': { rent: '9.0万円', line: '横浜市営地下鉄', toShibuya: '約55分' },
   '舞岡': { rent: '9.0万円', line: '横浜市営地下鉄', toShibuya: '約55分' },
   '湘南台': { rent: '9.0万円', line: '横浜市営地下鉄/小田急江ノ島線', toShibuya: '約55分' },
+
+  // エリアヒント掲載エリア（2LDK相場）
+  '相模大野': { rent: '8〜12万円', line: '小田急小田原線/江ノ島線', toShibuya: '約45〜50分' },
+  '橋本': { rent: '7〜11万円', line: '京王相模原線/JR横浜線', toShibuya: '約60〜65分' },
+  '大和': { rent: '7〜10万円', line: '小田急江ノ島線/相鉄本線', toShibuya: '約45〜55分' },
+  '鷺沼': { rent: '10〜14万円', line: '東急田園都市線', toShibuya: '約22〜27分' },
+  'たまプラーザ': { rent: '12〜16万円', line: '東急田園都市線', toShibuya: '約25〜30分' },
+  '千歳烏山': { rent: '12〜16万円', line: '京王線', toShibuya: '約18〜22分' },
+  '下北沢': { rent: '15〜19万円', line: '京王井の頭線/小田急線', toShibuya: '約5〜7分' },
+  '経堂': { rent: '14〜19万円', line: '小田急小田原線', toShibuya: '約15〜20分' },
+  '調布': { rent: '10〜14万円', line: '京王線/京王相模原線', toShibuya: '約25〜30分' },
+  '練馬': { rent: '約12万円', line: '西武池袋線/大江戸線', toShibuya: '約30〜35分' },
 }
 
 // 駅名から家賃データを検索する

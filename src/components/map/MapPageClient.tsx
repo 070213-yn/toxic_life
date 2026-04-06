@@ -58,6 +58,8 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
   const [focusedAreaId, setFocusedAreaId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarPinAreaId, setSidebarPinAreaId] = useState<string | null>(null)
+  // 実家ピン配置モード
+  const [homePlacing, setHomePlacing] = useState<'shingo' | 'airi' | null>(null)
   const searchParams = useSearchParams()
 
   const urlPinAreaId = searchParams.get('pin_area_id')
@@ -71,6 +73,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
   const handleHomeClick = (homeKey: 'shingo' | 'airi') => {
     if (homeLocations[homeKey]) setFocusedAreaId(`home-${homeKey}`)
   }
+  const handleHomePlaced = () => setHomePlacing(null)
 
   const pinnedCount = areas.filter((a) => a.latitude != null && a.longitude != null).length
 
@@ -85,6 +88,8 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
           focusAreaId={focusAreaId}
           focusedAreaId={focusedAreaId}
           onPinPlaced={handlePinPlaced}
+          homePlacing={homePlacing}
+          onHomePlaced={handleHomePlaced}
         />
         <div className="absolute top-4 right-4 z-[1000] flex gap-2">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors">
@@ -114,7 +119,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
         </div>
       )}
 
-      {showHomeModal && <HomeLocationModal currentLocations={homeLocations} onClose={() => setShowHomeModal(false)} />}
+      {showHomeModal && <HomeLocationModal currentLocations={homeLocations} onClose={() => setShowHomeModal(false)} onStartPlacing={(who) => setHomePlacing(who)} />}
     </div>
   )
 }

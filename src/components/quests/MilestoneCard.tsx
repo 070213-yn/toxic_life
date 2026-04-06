@@ -482,6 +482,7 @@ function InlineAddTask({
           <option value="しんご">しんご</option>
           <option value="あいり">あいり</option>
           <option value="2人共通">2人で</option>
+          <option value="各自">各自</option>
         </select>
         <button
           onClick={handleAdd}

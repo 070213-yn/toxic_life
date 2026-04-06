@@ -103,7 +103,8 @@ export function AddTaskModal({ milestoneId, onClose, onAdd }: Props) {
             >
               <option value="しんご">しんご</option>
               <option value="あいり">あいり</option>
-              <option value="2人共通">2人共通</option>
+              <option value="2人共通">2人で</option>
+              <option value="各自">各自</option>
             </select>
           </div>
 

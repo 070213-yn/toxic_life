@@ -18,7 +18,9 @@ type Props = {
   pinAreaName?: string | null
   focusAreaId?: string | null
   focusedAreaId?: string | null
-  onPinPlaced?: () => void      // ピン配置完了時のコールバック
+  onPinPlaced?: () => void
+  homePlacing?: 'shingo' | 'airi' | null  // 実家ピン配置モード
+  onHomePlaced?: () => void
 }
 
 // useJsApiLoader の libraries は再レンダリングで参照が変わらないようにstatic定義
@@ -73,7 +75,7 @@ const mapContainerStyle = {
 // 関東圏の中心
 const defaultCenter = { lat: 35.68, lng: 139.76 }
 
-export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId, onPinPlaced }: Props) {
+export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId, onPinPlaced, homePlacing, onHomePlaced }: Props) {
   const router = useRouter()
   const mapRef = useRef<google.maps.Map | null>(null)
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
@@ -102,6 +104,35 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       setPinPlacing(false)
     }
   }, [pinAreaId])
+
+  // 実家ピン配置モード
+  const [homePos, setHomePos] = useState<{ lat: number; lng: number } | null>(null)
+  const [homeSaving, setHomeSaving] = useState(false)
+  const [homeSaved, setHomeSaved] = useState(false)
+
+  useEffect(() => {
+    if (homePlacing) {
+      setHomePos(null)
+      setHomeSaved(false)
+    }
+  }, [homePlacing])
+
+  // 実家ピン保存
+  const handleHomeSave = async () => {
+    if (!homePlacing || !homePos) return
+    setHomeSaving(true)
+    const newLocations = { ...homeLocations }
+    newLocations[homePlacing] = {
+      lat: homePos.lat,
+      lng: homePos.lng,
+      label: homePlacing === 'shingo' ? 'しんごの実家' : 'あいりの実家',
+    }
+    await supabaseClient.from('settings').upsert({ key: 'home_locations', value: newLocations }, { onConflict: 'key' })
+    setHomeSaving(false)
+    setHomeSaved(true)
+    router.refresh()
+    onHomePlaced?.()
+  }
 
   // 検索ボックス
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
@@ -204,7 +235,13 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
     const lng = e.latLng?.lng()
     if (lat == null || lng == null) return
 
-    // ピン配置モード
+    // 実家ピン配置モード
+    if (homePlacing && !homeSaved) {
+      setHomePos({ lat, lng })
+      return
+    }
+
+    // エリアピン配置モード
     if (pinAreaId && pinPlacing && !pinSaved) {
       setPinPos({ lat, lng })
       return
@@ -298,6 +335,28 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
 
   return (
     <>
+      {/* 実家ピン配置バナー */}
+      {homePlacing && !homeSaved && (
+        <div className="absolute top-0 left-0 right-0 z-[1001] bg-accent-warm/20 backdrop-blur-sm border-b border-accent-warm/30 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <span className="text-xl">🏠</span>
+            <p className="text-sm font-medium text-text flex-1">
+              <span className="font-bold">{homePlacing === 'shingo' ? 'しんご' : 'あいり'}の実家</span>の場所をクリックしてね
+            </p>
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              {homePos && (
+                <button onClick={handleHomeSave} disabled={homeSaving} className="px-4 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50">
+                  {homeSaving ? '保存中...' : 'この場所で保存'}
+                </button>
+              )}
+              <button onClick={() => onHomePlaced?.()} className="px-3 py-1.5 text-text-sub text-sm rounded-full hover:bg-white/50 transition-colors">
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ピン配置モードのバナー */}
       {pinAreaId && pinPlacing && !pinSaved && (
         <div className="absolute top-0 left-0 right-0 z-[1001] bg-primary-light/90 backdrop-blur-sm border-b border-primary/20 px-4 py-3">
@@ -477,6 +536,15 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
             </MarkerF>
           )
         })}
+
+        {/* 実家の仮ピン（配置モード中） */}
+        {homePos && homePlacing && !homeSaved && (
+          <MarkerF
+            position={homePos}
+            label={{ text: '\u{1F3E0}', fontSize: '28px', className: '' }}
+            icon={{ path: google.maps.SymbolPath.CIRCLE, scale: 0 }}
+          />
+        )}
 
         {/* 機能A: クリックした仮ピン（青い点） */}
         {clickedPos && !pinAreaId && (
