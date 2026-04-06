@@ -203,6 +203,21 @@ function TaskItem({
   textColorClass: string
 }) {
   const [justChecked, setJustChecked] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const editRef = useRef<HTMLInputElement>(null)
+
+  // タスク名を保存
+  const saveTitle = useCallback(async () => {
+    if (!editTitle.trim() || editTitle.trim() === task.title) {
+      setEditTitle(task.title)
+      setEditing(false)
+      return
+    }
+    await supabase.from('tasks').update({ title: editTitle.trim() }).eq('id', task.id)
+    setEditing(false)
+    // ページ側でrefreshされるまでローカルで表示
+  }, [editTitle, task.id, task.title])
 
   // 貯金連動タスクの自動判定
   const isAutoAchieved =
@@ -252,13 +267,31 @@ function TaskItem({
 
       {/* タスク内容 */}
       <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm leading-snug transition-all duration-300 ${
-            task.is_completed ? 'line-through text-text-sub' : textColorClass
-          }`}
-        >
-          {task.title}
-        </p>
+        {editing ? (
+          <input
+            ref={editRef}
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); saveTitle() }
+              if (e.key === 'Escape') { setEditTitle(task.title); setEditing(false) }
+            }}
+            autoFocus
+            className="w-full text-sm px-1.5 py-0.5 rounded border border-primary/30 bg-white/80 text-text focus:outline-none focus:ring-1 focus:ring-primary/40"
+          />
+        ) : (
+          <p
+            onDoubleClick={() => { if (!task.is_completed) { setEditing(true); setTimeout(() => editRef.current?.focus(), 50) } }}
+            className={`text-sm leading-snug transition-all duration-300 cursor-text ${
+              task.is_completed ? 'line-through text-text-sub' : textColorClass
+            }`}
+            title="ダブルクリックで編集"
+          >
+            {editTitle}
+          </p>
+        )}
 
         {/* 貯金連動タスクのプログレスバー */}
         {task.is_auto_savings && savingsGoal && savingsProgress !== null && (
