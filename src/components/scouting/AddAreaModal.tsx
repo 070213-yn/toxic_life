@@ -12,10 +12,8 @@ type Props = {
   onClose: () => void
 }
 
-type AccessEntry = {
-  station: string
-  time: string
-}
+// アクセス情報は最寄り駅からの自動計算（固定4地点）
+const ACCESS_DESTINATIONS = ['新宿', '横浜', 'センター北', '辻堂']
 
 export default function AddAreaModal({ onClose }: Props) {
   const router = useRouter()
@@ -28,11 +26,6 @@ export default function AddAreaModal({ onClose }: Props) {
     new Date().toISOString().split('T')[0] // デフォルト: 今日
   )
   const [rentMemo, setRentMemo] = useState('')
-  const [accessEntries, setAccessEntries] = useState<AccessEntry[]>([
-    { station: '渋谷', time: '' },
-    { station: '新宿', time: '' },
-    { station: '池袋', time: '' },
-  ])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -61,23 +54,6 @@ export default function AddAreaModal({ onClose }: Props) {
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // アクセス情報の更新
-  const updateAccess = (index: number, field: keyof AccessEntry, value: string) => {
-    setAccessEntries((prev) =>
-      prev.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry))
-    )
-  }
-
-  // アクセス情報の追加
-  const addAccessEntry = () => {
-    setAccessEntries((prev) => [...prev, { station: '', time: '' }])
-  }
-
-  // アクセス情報の削除
-  const removeAccessEntry = (index: number) => {
-    setAccessEntries((prev) => prev.filter((_, i) => i !== index))
-  }
-
   // 保存処理
   const handleSave = async () => {
     if (!name.trim()) {
@@ -89,14 +65,6 @@ export default function AddAreaModal({ onClose }: Props) {
     setError('')
 
     try {
-      // access_info をオブジェクトに変換（空の値は除外）
-      const accessInfo: Record<string, string> = {}
-      accessEntries.forEach((entry) => {
-        if (entry.station.trim() && entry.time.trim()) {
-          accessInfo[entry.station.trim()] = entry.time.trim()
-        }
-      })
-
       // エリアをINSERT
       const { data: area, error: insertError } = await supabase
         .from('scouting_areas')
@@ -104,13 +72,38 @@ export default function AddAreaModal({ onClose }: Props) {
           name: name.trim(),
           nearest_station: nearestStation.trim() || null,
           visited_date: visitedDate || null,
-          access_info: Object.keys(accessInfo).length > 0 ? accessInfo : null,
           rent_memo: rentMemo.trim() || null,
         })
         .select()
         .single()
 
       if (insertError) throw insertError
+
+      // 最寄り駅があればアクセス情報を自動計算
+      if (nearestStation.trim() && typeof google !== 'undefined' && google.maps) {
+        try {
+          const service = new google.maps.DistanceMatrixService()
+          const result = await service.getDistanceMatrix({
+            origins: [`${nearestStation.trim()}駅`],
+            destinations: ACCESS_DESTINATIONS.map((d) => `${d}駅`),
+            travelMode: google.maps.TravelMode.TRANSIT,
+            region: 'JP',
+          })
+          if (result.rows[0]) {
+            const accessInfo: Record<string, string> = {}
+            result.rows[0].elements.forEach((el, i) => {
+              if (el.status === 'OK' && el.duration) {
+                accessInfo[ACCESS_DESTINATIONS[i]] = el.duration.text
+              }
+            })
+            if (Object.keys(accessInfo).length > 0) {
+              await supabase.from('scouting_areas').update({ access_info: accessInfo }).eq('id', area.id)
+            }
+          }
+        } catch (e) {
+          console.error('アクセス情報の自動計算に失敗:', e)
+        }
+      }
 
       // 写真をアップロード
       for (let i = 0; i < photos.length; i++) {
@@ -248,45 +241,21 @@ export default function AddAreaModal({ onClose }: Props) {
             )}
           </div>
 
-          {/* アクセス情報 */}
+          {/* アクセス情報（自動計算） */}
           <div>
             <label className="block text-sm font-medium text-text mb-1.5">
               主要駅へのアクセス時間
             </label>
-            <div className="space-y-2">
-              {accessEntries.map((entry, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={entry.station}
-                    onChange={(e) => updateAccess(i, 'station', e.target.value)}
-                    placeholder="駅名"
-                    className="flex-1 border border-primary-light/40 rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-text-sub/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <input
-                    type="text"
-                    value={entry.time}
-                    onChange={(e) => updateAccess(i, 'time', e.target.value)}
-                    placeholder="例: 15分"
-                    className="w-24 border border-primary-light/40 rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-text-sub/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <button
-                    onClick={() => removeAccessEntry(i)}
-                    className="text-text-sub/40 hover:text-accent transition-colors p-1 flex-shrink-0"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+            <div className="bg-primary-light/10 rounded-xl px-4 py-3 border border-primary-light/20">
+              <p className="text-xs text-text-sub mb-2">最寄り駅を入力すると、以下の4地点への乗換時間が自動計算されます</p>
+              <div className="flex flex-wrap gap-2">
+                {ACCESS_DESTINATIONS.map((d) => (
+                  <span key={d} className="text-xs bg-bg-card px-2.5 py-1 rounded-full text-text border border-primary-light/30">
+                    {d}
+                  </span>
+                ))}
+              </div>
             </div>
-            <button
-              onClick={addAccessEntry}
-              className="mt-2 text-xs text-primary hover:text-primary/80 transition-colors"
-            >
-              + 駅を追加
-            </button>
           </div>
 
           {/* 家賃相場メモ */}
