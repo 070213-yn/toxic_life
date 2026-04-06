@@ -4,6 +4,22 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskReactions } from '@/components/quests/TaskReactions'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 type Props = {
   tasks: Task[]
@@ -78,6 +94,40 @@ function AvatarIcon({ profile }: { profile: Profile | undefined }) {
   return <span className="text-sm leading-none">{profile.avatar_emoji}</span>
 }
 
+// ドラッグ可能なタスクラッパー
+function SortableTaskWrapper({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      {/* ドラッグハンドル（左端） */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 hover:opacity-60 transition-opacity z-10"
+        title="ドラッグで並び替え"
+      >
+        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" className="text-text-sub/40">
+          <circle cx="3" cy="2" r="1.5" />
+          <circle cx="7" cy="2" r="1.5" />
+          <circle cx="3" cy="7" r="1.5" />
+          <circle cx="7" cy="7" r="1.5" />
+          <circle cx="3" cy="12" r="1.5" />
+          <circle cx="7" cy="12" r="1.5" />
+        </svg>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 // タスクリストコンポーネント
 // 担当者別にグループ化して表示、チェックボックスで完了切り替え
 export function TaskList({
@@ -136,6 +186,41 @@ export function TaskList({
     [onTaskDelete]
   )
 
+  // ドラッグ＆ドロップのセンサー設定
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  // ドラッグ終了時: sort_orderを更新
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent, groupTasks: Task[]) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const oldIndex = groupTasks.findIndex((t) => t.id === active.id)
+      const newIndex = groupTasks.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      // 新しい並び順を計算
+      const reordered = [...groupTasks]
+      const [moved] = reordered.splice(oldIndex, 1)
+      reordered.splice(newIndex, 0, moved)
+
+      // sort_orderを更新してDB保存
+      const updates = reordered.map((t, i) => ({
+        id: t.id,
+        sort_order: i,
+      }))
+
+      for (const u of updates) {
+        onTaskUpdate({ ...groupTasks.find((t) => t.id === u.id)!, sort_order: u.sort_order })
+        supabase.from('tasks').update({ sort_order: u.sort_order }).eq('id', u.id)
+      }
+    },
+    [onTaskUpdate]
+  )
+
   if (tasks.length === 0) {
     return (
       <p className="text-center text-text-sub text-sm py-6">
@@ -172,26 +257,33 @@ export function TaskList({
             {group.label}
           </p>
 
-          {/* タスク一覧 */}
-          <div className="space-y-1">
-            {group.tasks.map((task) => (
-              <div key={task.id}>
-                <TaskItem
-                  task={task}
-                  totalSavings={totalSavings}
-                  savingsGoal={savingsGoal}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                  textColorClass={group.styles.textColor}
-                />
-                {/* 完了済みタスクにリアクション表示 */}
-                <TaskReactions
-                  taskId={task.id}
-                  isCompleted={task.is_completed}
-                />
+          {/* タスク一覧（ドラッグ並び替え対応） */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(e) => handleDragEnd(e, group.tasks)}
+          >
+            <SortableContext items={group.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1">
+                {group.tasks.map((task) => (
+                  <SortableTaskWrapper key={task.id} id={task.id}>
+                    <TaskItem
+                      task={task}
+                      totalSavings={totalSavings}
+                      savingsGoal={savingsGoal}
+                      onToggle={handleToggle}
+                      onDelete={handleDelete}
+                      textColorClass={group.styles.textColor}
+                    />
+                    <TaskReactions
+                      taskId={task.id}
+                      isCompleted={task.is_completed}
+                    />
+                  </SortableTaskWrapper>
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         </div>
       ))}
     </div>

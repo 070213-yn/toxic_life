@@ -166,23 +166,23 @@ export default async function DashboardPage() {
       </header>
 
       {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}
-      <main className="max-w-5xl mx-auto px-6 py-4 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-4 space-y-6">
         {/* 上段: カウントダウン(左) + 今月のやること(中央広め) + 貯金(右) */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
           {/* カウントダウン */}
-          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
+          <div className="lg:col-span-1 min-h-[380px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
             <div className="w-full flex flex-col">
               <CountdownBanner moveInDate={moveInDate} />
             </div>
           </div>
 
-          {/* 現在のクエスト（2カラム分） */}
-          <div className="lg:col-span-2 min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
+          {/* 現在のクエスト（3カラム分） */}
+          <div className="lg:col-span-3 min-h-[380px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
             <TodoHighlight milestone={currentMilestone} />
           </div>
 
           {/* 貯金プログレス */}
-          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
+          <div className="lg:col-span-1 min-h-[380px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
             <SavingsRing
               totalSavings={totalSavings}
               shingoSavings={shingoSavings}
