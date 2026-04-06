@@ -1,38 +1,74 @@
 'use client'
 
 // Google Maps地図コンポーネント
-import { useCallback } from 'react'
+// 機能A: マップクリックで下見メモ作成
+// 機能B: ピン配置モード（pin_area_id）、フォーカスモード（focus_area_id）
+import { useCallback, useState, useRef } from 'react'
 import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api'
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '@/lib/supabase/client'
 import type { ScoutingArea } from '@/lib/types'
 import type { HomeLocations } from '@/app/(app)/map/page'
 
 type Props = {
   areas: Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude'>[]
   homeLocations: HomeLocations
+  pinAreaId?: string | null      // ピン配置モード対象のエリアID
+  pinAreaName?: string | null    // ピン配置モード対象のエリア名
+  focusAreaId?: string | null    // フォーカス（ズームイン）対象のエリアID
 }
 
-// 地図のスタイル（パステル調にカスタマイズ）
+// 地図のスタイル
 const mapContainerStyle = {
   width: '100%',
   height: '100%',
 }
 
 // 関東圏の中心
-const center = { lat: 35.68, lng: 139.76 }
+const defaultCenter = { lat: 35.68, lng: 139.76 }
 
-export default function MapView({ areas, homeLocations }: Props) {
+export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId }: Props) {
   const router = useRouter()
+  const mapRef = useRef<google.maps.Map | null>(null)
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
   const [selectedHome, setSelectedHome] = useState<string | null>(null)
 
+  // 機能A: マップクリックで下見メモ作成
+  const [clickedPos, setClickedPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [newAreaName, setNewAreaName] = useState('')
+  const [newStation, setNewStation] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createdAreaId, setCreatedAreaId] = useState<string | null>(null)
+
+  // 機能B: ピン配置モード
+  const [pinPlacing, setPinPlacing] = useState(!!pinAreaId)
+  const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [pinSaving, setPinSaving] = useState(false)
+  const [pinSaved, setPinSaved] = useState(false)
+
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    language: 'ja',
+    region: 'JP',
   })
 
+  // フォーカス対象のエリアを取得
+  const focusArea = focusAreaId ? areas.find((a) => a.id === focusAreaId) : null
+
   const onLoad = useCallback((map: google.maps.Map) => {
-    // エリアと実家の全ポイントが見えるようにフィット
+    mapRef.current = map
+
+    // フォーカスモード: 特定エリアにズームイン
+    if (focusArea && focusArea.latitude != null && focusArea.longitude != null) {
+      map.setCenter({ lat: focusArea.latitude, lng: focusArea.longitude })
+      map.setZoom(15)
+      // ズーム後にInfoWindowを開く
+      setTimeout(() => setSelectedArea(focusArea.id), 500)
+      return
+    }
+
+    // 通常モード: 全ポイントが見えるようにフィット
     const bounds = new google.maps.LatLngBounds()
     let hasPoints = false
 
@@ -55,7 +91,73 @@ export default function MapView({ areas, homeLocations }: Props) {
     if (hasPoints) {
       map.fitBounds(bounds, 60)
     }
-  }, [areas, homeLocations])
+  }, [areas, homeLocations, focusArea])
+
+  // 地図クリックハンドラ
+  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    const lat = e.latLng?.lat()
+    const lng = e.latLng?.lng()
+    if (lat == null || lng == null) return
+
+    // ピン配置モード
+    if (pinAreaId && pinPlacing && !pinSaved) {
+      setPinPos({ lat, lng })
+      return
+    }
+
+    // 通常モード: 下見メモ作成フォームを表示
+    if (!pinAreaId) {
+      setClickedPos({ lat, lng })
+      setNewAreaName('')
+      setNewStation('')
+      setCreatedAreaId(null)
+      setSelectedArea(null)
+      setSelectedHome(null)
+    }
+  }, [pinAreaId, pinPlacing, pinSaved])
+
+  // 機能A: 新しい下見メモを作成
+  const handleCreateArea = async () => {
+    if (!newAreaName.trim() || !clickedPos) return
+    setCreating(true)
+
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('scouting_areas')
+      .insert({
+        name: newAreaName.trim(),
+        nearest_station: newStation.trim() || null,
+        latitude: clickedPos.lat,
+        longitude: clickedPos.lng,
+        visited_date: today,
+      })
+      .select('id')
+      .single()
+
+    if (!error && data) {
+      setCreatedAreaId(data.id)
+      router.refresh()
+    }
+    setCreating(false)
+  }
+
+  // 機能B: ピン位置を保存
+  const handlePinSave = async () => {
+    if (!pinAreaId || !pinPos) return
+    setPinSaving(true)
+
+    const { error } = await supabase
+      .from('scouting_areas')
+      .update({ latitude: pinPos.lat, longitude: pinPos.lng })
+      .eq('id', pinAreaId)
+
+    if (!error) {
+      setPinSaved(true)
+      setPinPlacing(false)
+      router.refresh()
+    }
+    setPinSaving(false)
+  }
 
   if (loadError) {
     return (
@@ -74,114 +176,243 @@ export default function MapView({ areas, homeLocations }: Props) {
   }
 
   return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={center}
-      zoom={10}
-      onLoad={onLoad}
-      options={{
-        zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-      }}
-    >
-      {/* 下見エリアのマーカー（赤いピン） */}
-      {areas.map((area) => {
-        if (area.latitude == null || area.longitude == null) return null
-        return (
+    <>
+      {/* ピン配置モードのバナー */}
+      {pinAreaId && pinPlacing && !pinSaved && (
+        <div className="absolute top-0 left-0 right-0 z-[1001] bg-primary-light/90 backdrop-blur-sm border-b border-primary/20 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            {/* 地図アイコン */}
+            <svg className="w-5 h-5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <p className="text-sm font-medium text-text">
+              <span className="font-bold">{pinAreaName || 'エリア'}</span>のピンを配置してください。地図をクリックして場所を選んでね
+            </p>
+            {/* ピン位置が選択済みなら保存ボタン */}
+            {pinPos && (
+              <button
+                onClick={handlePinSave}
+                disabled={pinSaving}
+                className="ml-auto shrink-0 px-4 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {pinSaving ? '保存中...' : 'この場所で保存'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ピン保存完了バナー */}
+      {pinAreaId && pinSaved && (
+        <div className="absolute top-0 left-0 right-0 z-[1001] bg-success/10 backdrop-blur-sm border-b border-success/20 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <svg className="w-5 h-5 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-sm font-medium text-text">
+              ピンを保存しました！
+            </p>
+            <Link
+              href={`/scouting/${pinAreaId}`}
+              className="ml-auto shrink-0 px-4 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors"
+            >
+              下見メモに戻る
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={defaultCenter}
+        zoom={10}
+        onLoad={onLoad}
+        onClick={handleMapClick}
+        options={{
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          // ピン配置モード中はクロスヘアカーソル
+          draggableCursor: (pinAreaId && pinPlacing && !pinSaved) ? 'crosshair' : undefined,
+        }}
+      >
+        {/* 下見エリアのマーカー（赤いピン） */}
+        {areas.map((area) => {
+          if (area.latitude == null || area.longitude == null) return null
+          return (
+            <MarkerF
+              key={area.id}
+              position={{ lat: area.latitude, lng: area.longitude }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#EF4444',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+              }}
+              onClick={() => setSelectedArea(area.id)}
+            >
+              {selectedArea === area.id && (
+                <InfoWindowF
+                  position={{ lat: area.latitude, lng: area.longitude }}
+                  onCloseClick={() => setSelectedArea(null)}
+                >
+                  <div className="text-center min-w-[120px] p-1">
+                    <p className="font-bold text-sm text-gray-800 mb-2">{area.name}</p>
+                    <button
+                      onClick={() => router.push(`/scouting/${area.id}`)}
+                      className="inline-block px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
+                    >
+                      下見メモを見る
+                    </button>
+                  </div>
+                </InfoWindowF>
+              )}
+            </MarkerF>
+          )
+        })}
+
+        {/* 機能A: クリックした仮ピン（青い点） */}
+        {clickedPos && !pinAreaId && (
           <MarkerF
-            key={area.id}
-            position={{ lat: area.latitude, lng: area.longitude }}
+            position={clickedPos}
             icon={{
               path: google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: '#EF4444',
-              fillOpacity: 1,
+              scale: 10,
+              fillColor: '#3B82F6',
+              fillOpacity: 0.9,
               strokeColor: '#ffffff',
               strokeWeight: 2,
             }}
-            onClick={() => setSelectedArea(area.id)}
           >
-            {selectedArea === area.id && (
+            <InfoWindowF
+              position={clickedPos}
+              onCloseClick={() => { setClickedPos(null); setCreatedAreaId(null) }}
+            >
+              <div className="min-w-[200px] p-1">
+                {createdAreaId ? (
+                  // 作成完了後の表示
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-green-600 mb-2">作成しました！</p>
+                    <button
+                      onClick={() => router.push(`/scouting/${createdAreaId}`)}
+                      className="inline-block px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
+                    >
+                      下見メモを開く
+                    </button>
+                  </div>
+                ) : (
+                  // 作成フォーム
+                  <div>
+                    <p className="text-xs font-bold text-gray-700 mb-2">この場所で下見メモを作成</p>
+                    <input
+                      type="text"
+                      value={newAreaName}
+                      onChange={(e) => setNewAreaName(e.target.value)}
+                      placeholder="エリア名（必須）"
+                      className="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateArea() }}
+                    />
+                    <input
+                      type="text"
+                      value={newStation}
+                      onChange={(e) => setNewStation(e.target.value)}
+                      placeholder="最寄り駅（任意）"
+                      className="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateArea() }}
+                    />
+                    <button
+                      onClick={handleCreateArea}
+                      disabled={creating || !newAreaName.trim()}
+                      className="w-full px-3 py-1.5 text-xs bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    >
+                      {creating ? '作成中...' : '作成'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </InfoWindowF>
+          </MarkerF>
+        )}
+
+        {/* 機能B: ピン配置モードの仮ピン（青い点） */}
+        {pinAreaId && pinPos && !pinSaved && (
+          <MarkerF
+            position={pinPos}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#3B82F6',
+              fillOpacity: 0.9,
+              strokeColor: '#ffffff',
+              strokeWeight: 3,
+            }}
+          />
+        )}
+
+        {/* しんごの実家 */}
+        {homeLocations.shingo && (
+          <MarkerF
+            position={{ lat: homeLocations.shingo.lat, lng: homeLocations.shingo.lng }}
+            label={{
+              text: '\u{1F3E0}',
+              fontSize: '24px',
+              className: 'google-maps-emoji-label',
+            }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 0,
+            }}
+            onClick={() => setSelectedHome('shingo')}
+          >
+            {selectedHome === 'shingo' && (
               <InfoWindowF
-                position={{ lat: area.latitude, lng: area.longitude }}
-                onCloseClick={() => setSelectedArea(null)}
+                position={{ lat: homeLocations.shingo.lat, lng: homeLocations.shingo.lng }}
+                onCloseClick={() => setSelectedHome(null)}
               >
-                <div className="text-center min-w-[120px] p-1">
-                  <p className="font-bold text-sm text-gray-800 mb-2">{area.name}</p>
-                  <button
-                    onClick={() => router.push(`/scouting/${area.id}`)}
-                    className="inline-block px-3 py-1.5 text-xs bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
-                  >
-                    下見メモを見る
-                  </button>
+                <div className="text-center p-1">
+                  <p className="font-bold text-sm text-gray-800">
+                    {homeLocations.shingo.label || 'しんごの実家'}
+                  </p>
                 </div>
               </InfoWindowF>
             )}
           </MarkerF>
-        )
-      })}
+        )}
 
-      {/* しんごの実家 */}
-      {homeLocations.shingo && (
-        <MarkerF
-          position={{ lat: homeLocations.shingo.lat, lng: homeLocations.shingo.lng }}
-          label={{
-            text: '\u{1F3E0}',
-            fontSize: '24px',
-            className: 'google-maps-emoji-label',
-          }}
-          icon={{
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 0,
-          }}
-          onClick={() => setSelectedHome('shingo')}
-        >
-          {selectedHome === 'shingo' && (
-            <InfoWindowF
-              position={{ lat: homeLocations.shingo.lat, lng: homeLocations.shingo.lng }}
-              onCloseClick={() => setSelectedHome(null)}
-            >
-              <div className="text-center p-1">
-                <p className="font-bold text-sm text-gray-800">
-                  {homeLocations.shingo.label || 'しんごの実家'}
-                </p>
-              </div>
-            </InfoWindowF>
-          )}
-        </MarkerF>
-      )}
-
-      {/* あいりの実家 */}
-      {homeLocations.airi && (
-        <MarkerF
-          position={{ lat: homeLocations.airi.lat, lng: homeLocations.airi.lng }}
-          label={{
-            text: '\u{1F3E0}',
-            fontSize: '24px',
-            className: 'google-maps-emoji-label',
-          }}
-          icon={{
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 0,
-          }}
-          onClick={() => setSelectedHome('airi')}
-        >
-          {selectedHome === 'airi' && (
-            <InfoWindowF
-              position={{ lat: homeLocations.airi.lat, lng: homeLocations.airi.lng }}
-              onCloseClick={() => setSelectedHome(null)}
-            >
-              <div className="text-center p-1">
-                <p className="font-bold text-sm text-gray-800">
-                  {homeLocations.airi.label || 'あいりの実家'}
-                </p>
-              </div>
-            </InfoWindowF>
-          )}
-        </MarkerF>
-      )}
-    </GoogleMap>
+        {/* あいりの実家 */}
+        {homeLocations.airi && (
+          <MarkerF
+            position={{ lat: homeLocations.airi.lat, lng: homeLocations.airi.lng }}
+            label={{
+              text: '\u{1F3E0}',
+              fontSize: '24px',
+              className: 'google-maps-emoji-label',
+            }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 0,
+            }}
+            onClick={() => setSelectedHome('airi')}
+          >
+            {selectedHome === 'airi' && (
+              <InfoWindowF
+                position={{ lat: homeLocations.airi.lat, lng: homeLocations.airi.lng }}
+                onCloseClick={() => setSelectedHome(null)}
+              >
+                <div className="text-center p-1">
+                  <p className="font-bold text-sm text-gray-800">
+                    {homeLocations.airi.label || 'あいりの実家'}
+                  </p>
+                </div>
+              </InfoWindowF>
+            )}
+          </MarkerF>
+        )}
+      </GoogleMap>
+    </>
   )
 }

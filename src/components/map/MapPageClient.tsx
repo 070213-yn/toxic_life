@@ -1,7 +1,9 @@
 'use client'
 
 // マップページのメインクライアントコンポーネント
+// ピン配置モード（pin_area_id クエリパラメータ）にも対応
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
 import type { ScoutingArea } from '@/lib/types'
@@ -14,11 +16,26 @@ type Props = {
 
 export default function MapPageClient({ areas, homeLocations }: Props) {
   const [showHomeModal, setShowHomeModal] = useState(false)
+  const searchParams = useSearchParams()
+
+  // ピン配置モード用: URLの pin_area_id パラメータを取得
+  const pinAreaId = searchParams.get('pin_area_id')
+  // ズーム対象: focus_area_id パラメータ
+  const focusAreaId = searchParams.get('focus_area_id')
+
+  // ピン配置対象のエリア名を取得
+  const pinArea = pinAreaId ? areas.find((a) => a.id === pinAreaId) : null
 
   return (
     <div className="relative h-[calc(100vh-5rem)] md:h-screen">
       {/* Google Maps表示 */}
-      <MapView areas={areas} homeLocations={homeLocations} />
+      <MapView
+        areas={areas}
+        homeLocations={homeLocations}
+        pinAreaId={pinAreaId}
+        pinAreaName={pinArea?.name || null}
+        focusAreaId={focusAreaId}
+      />
 
       {/* フロートコントロールパネル（右上） */}
       <div className="absolute top-4 right-4 z-[1000]">

@@ -291,6 +291,34 @@ export default function AreaDetailClient({ area }: Props) {
           )}
         </div>
 
+        {/* マップ連携ボタン */}
+        <div className="mt-3 flex items-center gap-3">
+          {area.latitude == null || area.longitude == null ? (
+            // 緯度経度が未設定 → ピン配置モードへ遷移
+            <Link
+              href={`/map?pin_area_id=${area.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm rounded-full hover:bg-primary/90 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              マップにピンを追加
+            </Link>
+          ) : (
+            // 緯度経度が設定済み → マップでフォーカス表示
+            <Link
+              href={`/map?focus_area_id=${area.id}`}
+              className="inline-flex items-center gap-1 text-sm text-text-sub hover:text-primary transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              マップで見る
+            </Link>
+          )}
+        </div>
+
         {/* 最寄り駅・訪問日 */}
         <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-text-sub">
           {editing === 'station' ? (
