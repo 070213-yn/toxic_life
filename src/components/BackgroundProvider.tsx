@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react'
 
-const BG_CACHE_KEY = 'toxic-life-background'
 const DEFAULT_BG = '/images/bg-pastel.png'
 
 export default function BackgroundProvider() {
-  // デフォルト背景を初期値にして、即座に表示
   const [bgUrl, setBgUrl] = useState<string>(DEFAULT_BG)
 
   useEffect(() => {
@@ -17,39 +15,44 @@ export default function BackgroundProvider() {
     document.body.style.backgroundPosition = ''
     document.body.style.backgroundRepeat = ''
 
-    // 1. localStorageから取得（あれば上書き）
-    try {
-      const cached = localStorage.getItem(BG_CACHE_KEY)
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        if (parsed.url) setBgUrl(parsed.url)
-      }
-    } catch {
-      // パースエラーは無視
-    }
-
-    // 2. Supabaseから最新設定を同期（ログイン前は失敗するが問題ない）
-    const fetchBg = async () => {
+    // ユーザーIDを取得してユーザーごとのキャッシュを読む
+    const loadBg = async () => {
       try {
         const { supabase } = await import('@/lib/supabase/client')
-        const { data } = await supabase
-          .from('settings')
-          .select('*')
-          .eq('key', 'background')
-          .single()
+        const { data: { user } } = await supabase.auth.getUser()
+        const cacheKey = user ? `toxic-life-bg-${user.id}` : 'toxic-life-background'
 
-        if (data?.value) {
-          const val = data.value as { url?: string }
-          if (val.url) {
-            setBgUrl(val.url)
-            localStorage.setItem(BG_CACHE_KEY, JSON.stringify(data.value))
+        // 1. localStorageから即座に取得
+        try {
+          const cached = localStorage.getItem(cacheKey)
+          if (cached) {
+            const parsed = JSON.parse(cached)
+            if (parsed.url) setBgUrl(parsed.url)
+          }
+        } catch {}
+
+        // 2. Supabaseから最新設定を同期
+        if (user) {
+          const bgKey = `background_${user.id}`
+          const { data } = await supabase
+            .from('settings')
+            .select('*')
+            .eq('key', bgKey)
+            .single()
+
+          if (data?.value) {
+            const val = data.value as { url?: string }
+            if (val.url) {
+              setBgUrl(val.url)
+              localStorage.setItem(cacheKey, JSON.stringify(data.value))
+            }
           }
         }
       } catch {
-        // DB取得失敗はデフォルト背景のまま
+        // DB取得失敗はデフォルトのまま
       }
     }
-    fetchBg()
+    loadBg()
 
     // 3. SettingsPanelからの変更イベント
     const handleBgChange = (e: Event) => {

@@ -211,7 +211,7 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
 
       <div className="px-4 max-w-4xl mx-auto space-y-6">
         {/* ===== 家賃帯セレクター（横スクロールチップ） ===== */}
-        <div className="overflow-x-auto -mx-4 px-4 pb-2">
+        <div className="overflow-x-auto -mx-4 px-4 pt-4 pb-2">
           <div className="flex gap-2 min-w-max">
             {tiers.map((tier) => {
               const isSelected = tier.id === selectedTierId
