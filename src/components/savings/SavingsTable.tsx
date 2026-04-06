@@ -151,7 +151,9 @@ export function SavingsTable({ savings }: { savings: Saving[] }) {
                       ? 'bg-primary-light/40 text-primary'
                       : 'bg-accent/20 text-accent'
                   }`}>
-                    {s.profiles?.avatar_emoji} {s.profiles?.display_name}
+                    {s.profiles?.avatar_emoji && (s.profiles.avatar_emoji.startsWith('http') || s.profiles.avatar_emoji.startsWith('/'))
+                      ? <img src={s.profiles.avatar_emoji} alt="" className="w-4 h-4 rounded-full object-cover inline" />
+                      : s.profiles?.avatar_emoji} {s.profiles?.display_name}
                   </span>
                 </td>
                 <td className="py-2.5 px-2 text-right">
@@ -248,7 +250,9 @@ export function SavingsTable({ savings }: { savings: Saving[] }) {
                     ? 'bg-primary-light/40 text-primary'
                     : 'bg-accent/20 text-accent'
                 }`}>
-                  {s.profiles?.avatar_emoji} {s.profiles?.display_name}
+                  {s.profiles?.avatar_emoji && (s.profiles.avatar_emoji.startsWith('http') || s.profiles.avatar_emoji.startsWith('/'))
+                      ? <img src={s.profiles.avatar_emoji} alt="" className="w-4 h-4 rounded-full object-cover inline" />
+                      : s.profiles?.avatar_emoji} {s.profiles?.display_name}
                 </span>
                 <span className="text-xs text-text-sub">{formatDate(s.recorded_date)}</span>
               </div>
