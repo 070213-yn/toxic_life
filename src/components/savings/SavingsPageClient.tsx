@@ -24,7 +24,7 @@ export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
   const [showForm, setShowForm] = useState(false)
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen">
       {/* ヘッダー */}
       <header className="px-4 pt-6 pb-2 max-w-4xl mx-auto">
         <div className="flex items-center justify-between">

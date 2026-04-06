@@ -88,7 +88,7 @@ function BudgetBadge({ value }: { value: string }) {
 
 export default function TipsPage() {
   return (
-    <div className="min-h-screen bg-bg pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8">
       {/* 番外編の背景装飾 */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.03]"

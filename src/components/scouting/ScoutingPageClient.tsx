@@ -97,7 +97,7 @@ export default function ScoutingPageClient({ areas }: Props) {
   const selectedAreas = areas.filter((a) => selectedIds.has(a.id))
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen">
       {/* ヘッダー */}
       <div className="px-6 pt-8 pb-2 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">

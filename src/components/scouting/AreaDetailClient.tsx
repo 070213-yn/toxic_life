@@ -221,7 +221,7 @@ export default function AreaDetailClient({ area }: Props) {
   const selectedPhoto = selectedPhotoIndex !== null ? photos[selectedPhotoIndex] : null
 
   return (
-    <div className="min-h-screen bg-bg pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8">
       {/* 保存成功トースト */}
       {saveToast.visible && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-[fade-slide-up_0.3s_ease-out]">

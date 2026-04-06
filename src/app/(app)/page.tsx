@@ -157,7 +157,7 @@ export default async function DashboardPage() {
   })
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen">
       {/* ヘッダー: 挨拶と今日の日付 */}
       <header className="px-6 pt-6 pb-2 max-w-5xl mx-auto">
         <p className="text-lg font-bold text-text">

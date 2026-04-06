@@ -351,7 +351,7 @@ export default function GuidePageClient({ items }: { items: GuideItem[] }) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-bg pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8">
       {/* ヘッダー */}
       <div className="px-4 pt-8 pb-6 max-w-3xl mx-auto">
         <div className="text-center mb-6">

@@ -15,7 +15,7 @@ export default async function ShoppingPage() {
 
   if (error && !categories) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="bg-bg-card rounded-2xl p-8 shadow-sm border border-primary-light/30 text-center max-w-sm">
           <svg className="w-12 h-12 mx-auto mb-4 text-text-sub/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
@@ -40,7 +40,7 @@ export default async function ShoppingPage() {
   }))
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen">
       {/* ヘッダー */}
       <div className="px-4 pt-8 pb-4 text-center">
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
