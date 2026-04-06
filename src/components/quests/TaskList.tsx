@@ -202,10 +202,21 @@ function TaskItem({
         )}
       </div>
 
-      {/* 自動判定バッジ */}
+      {/* 自動判定バッジ（手動チェック不可を示す） */}
       {task.is_auto_savings && (
-        <span className="shrink-0 text-xs bg-accent-warm/15 text-accent-warm px-2 py-0.5 rounded-full">
-          貯金連動
+        <span className="shrink-0 inline-flex items-center gap-1 text-[11px] bg-success/10 text-success px-2 py-0.5 rounded-full">
+          {/* 稲妻アイコン（自動判定を示す） */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            stroke="none"
+          >
+            <path d="M13 2L3 14h9l-1 10 10-12h-9l1-10z" />
+          </svg>
+          自動判定
         </span>
       )}
 
