@@ -247,8 +247,8 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       return
     }
 
-    // 通常モード: 下見メモ作成フォームを表示
-    if (!pinAreaId) {
+    // 通常モード: 下見メモ作成フォームを表示（実家配置中は無視）
+    if (!pinAreaId && !homePlacing) {
       setClickedPos({ lat, lng })
       setNewAreaName('')
       setNewStation('')
@@ -442,7 +442,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
           mapTypeControl: false,
           fullscreenControl: false,
           // ピン配置モード中はクロスヘアカーソル
-          draggableCursor: (pinAreaId && pinPlacing && !pinSaved) ? 'crosshair' : undefined,
+          draggableCursor: ((pinAreaId && pinPlacing && !pinSaved) || (homePlacing && !homeSaved)) ? 'crosshair' : undefined,
         }}
       >
         {/* 下見エリアのマーカー（赤いピン） */}
