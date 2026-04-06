@@ -24,7 +24,7 @@ export default async function AppLayout({
   return (
     <AuthProvider>
       <BackgroundProvider />
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen relative z-10">
         <Navigation />
 
         {/* メインコンテンツ: PC時はサイドバー分の余白、モバイル時はフッター分の余白 */}

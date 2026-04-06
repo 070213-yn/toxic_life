@@ -1,48 +1,38 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 // localStorageのキー（SettingsPanelと共通）
 const BG_CACHE_KEY = 'toxic-life-background'
 
-// 背景画像を適用するプロバイダー
-// settingsテーブルから背景設定を取得し、document.bodyに適用する
-// localStorageでキャッシュして即時反映を実現
+// 背景画像 + 白オーバーレイを描画するプロバイダー
+// 固定position のdivとして描画し、コンテンツの下に配置
 export default function BackgroundProvider() {
-  // 背景をbodyに適用する関数
-  const applyBackground = (url: string | null) => {
-    if (url) {
-      document.body.style.backgroundImage = `url(${url})`
-      document.body.style.backgroundSize = 'cover'
-      document.body.style.backgroundAttachment = 'fixed'
-      document.body.style.backgroundPosition = 'center'
-      document.body.style.backgroundRepeat = 'no-repeat'
-    } else {
-      document.body.style.backgroundImage = ''
-      document.body.style.backgroundSize = ''
-      document.body.style.backgroundAttachment = ''
-      document.body.style.backgroundPosition = ''
-      document.body.style.backgroundRepeat = ''
-    }
-  }
+  const [bgUrl, setBgUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    // 1. まずlocalStorageから即座に適用（ちらつき防止）
+    // bodyの直接スタイルは削除（旧方式のクリーンアップ）
+    document.body.style.backgroundImage = ''
+    document.body.style.backgroundSize = ''
+    document.body.style.backgroundAttachment = ''
+    document.body.style.backgroundPosition = ''
+    document.body.style.backgroundRepeat = ''
+
+    // 1. localStorageから即座に取得
     const cached = localStorage.getItem(BG_CACHE_KEY)
     if (cached) {
       try {
         const parsed = JSON.parse(cached)
-        applyBackground(parsed.url || null)
+        setBgUrl(parsed.url || null)
       } catch {
-        // パースエラーの場合は無視
+        // パースエラー
       }
     } else {
-      // キャッシュがない場合、デフォルト背景を適用
-      applyBackground('/images/bg-pastel.png')
+      setBgUrl('/images/bg-pastel.png')
     }
 
-    // 2. Supabaseから最新の設定を取得して同期
+    // 2. Supabaseから最新設定を同期
     const fetchAndApply = async () => {
       const { data } = await supabase
         .from('settings')
@@ -52,29 +42,45 @@ export default function BackgroundProvider() {
 
       if (data?.value) {
         const val = data.value as { url?: string }
-        applyBackground(val.url || null)
+        setBgUrl(val.url || null)
         localStorage.setItem(BG_CACHE_KEY, JSON.stringify(data.value))
       } else if (!cached) {
-        // DB設定もキャッシュもない場合はデフォルト背景
-        applyBackground('/images/bg-pastel.png')
+        setBgUrl('/images/bg-pastel.png')
       }
     }
     fetchAndApply()
 
-    // 3. SettingsPanelからのカスタムイベントをリスン（即時反映）
+    // 3. SettingsPanelからのカスタムイベント
     const handleBgChange = (e: Event) => {
       const detail = (e as CustomEvent).detail as { url?: string }
-      applyBackground(detail?.url || null)
+      setBgUrl(detail?.url || null)
     }
     window.addEventListener('background-change', handleBgChange)
 
-    // クリーンアップ
     return () => {
       window.removeEventListener('background-change', handleBgChange)
-      // bodyのスタイルはリセットしない（他ページでも継続）
     }
   }, [])
 
-  // UIを持たないプロバイダー
-  return null
+  if (!bgUrl) return null
+
+  return (
+    <>
+      {/* 背景画像（固定、最背面） */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${bgUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          opacity: 0.4,
+        }}
+      />
+      {/* 白オーバーレイ（文字の可読性を確保） */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none bg-white/50"
+      />
+    </>
+  )
 }
