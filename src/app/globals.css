@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #B8A9E8;
+  --primary-light: #E8E0FF;
+  --accent: #FFB5C2;
+  --accent-warm: #FFD4A0;
+  --success: #A8D8B9;
+  --bg: #FEFBF6;
+  --bg-card: #FFFFFF;
+  --text: #4A4458;
+  --text-sub: #9490A5;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-accent-warm: var(--accent-warm);
+  --color-success: var(--success);
+  --color-bg: var(--bg);
+  --color-bg-card: var(--bg-card);
+  --color-text: var(--text);
+  --color-text-sub: var(--text-sub);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* プログレスリングアニメーション */
+@keyframes fill-ring {
+  from { stroke-dashoffset: 283; }
+}
+
+/* 紙吹雪のキャンバス */
+.confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
