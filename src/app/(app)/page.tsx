@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import CountdownBanner from '@/components/dashboard/CountdownBanner'
 import SavingsRing from '@/components/dashboard/SavingsRing'
 import TodoHighlight from '@/components/dashboard/TodoHighlight'
+import ActivityFeed from '@/components/dashboard/ActivityFeed'
 import type { Milestone, Task, Saving } from '@/lib/types'
 
 // ダッシュボード（トップページ）
@@ -192,7 +193,14 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 下部の余白（モバイルはフッターナビの分を確保） */}
+        {/* 下段: 最近の履歴 */}
+        {recentActivities.length > 0 && (
+          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '300ms' }}>
+            <ActivityFeed activities={recentActivities} />
+          </div>
+        )}
+
+        {/* 下部の余白 */}
         <div className="h-4" />
       </main>
     </div>

@@ -86,13 +86,18 @@ export default function TodoHighlight({ milestone }: Props) {
     <div className="w-full flex-1 rounded-2xl bg-bg-card p-5 shadow-sm flex flex-col">
       {/* チャプターヘッダー */}
       <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">
             Chapter {milestone.sort_order}
           </span>
           <h2 className="text-sm font-bold text-text">{milestone.title}</h2>
+          {milestone.deadline && (
+            <span className="text-[10px] text-text-sub bg-primary-light/20 px-2 py-0.5 rounded">
+              〜{new Date(milestone.deadline).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
+          )}
         </div>
-        <a href="/quests" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+        <a href="/quests" className="text-[11px] text-primary hover:text-primary/80 transition-colors shrink-0">
           詳細 &rarr;
         </a>
       </div>
