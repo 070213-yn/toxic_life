@@ -3,8 +3,8 @@
 // Google Maps地図コンポーネント
 // 機能A: マップクリックで下見メモ作成
 // 機能B: ピン配置モード（pin_area_id）、フォーカスモード（focus_area_id）
-import { useCallback, useState, useRef } from 'react'
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api'
+import { useCallback, useState, useRef, useEffect } from 'react'
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, StandaloneSearchBox } from '@react-google-maps/api'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
@@ -17,7 +17,11 @@ type Props = {
   pinAreaId?: string | null      // ピン配置モード対象のエリアID
   pinAreaName?: string | null    // ピン配置モード対象のエリア名
   focusAreaId?: string | null    // フォーカス（ズームイン）対象のエリアID
+  focusedAreaId?: string | null  // サイドバーからのフォーカス対象ID
 }
+
+// useJsApiLoader の libraries は再レンダリングで参照が変わらないようにstatic定義
+const LIBRARIES: ('places')[] = ['places']
 
 // 地図のスタイル
 const mapContainerStyle = {
@@ -28,7 +32,7 @@ const mapContainerStyle = {
 // 関東圏の中心
 const defaultCenter = { lat: 35.68, lng: 139.76 }
 
-export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId }: Props) {
+export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId }: Props) {
   const router = useRouter()
   const mapRef = useRef<google.maps.Map | null>(null)
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
@@ -47,11 +51,60 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
   const [pinSaving, setPinSaving] = useState(false)
   const [pinSaved, setPinSaved] = useState(false)
 
+  // 検索ボックス
+  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
+
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     language: 'ja',
     region: 'JP',
+    libraries: LIBRARIES,
   })
+
+  // サイドバーからのフォーカス: focusedAreaId が変わったらパン＆ズーム
+  useEffect(() => {
+    if (!focusedAreaId || !mapRef.current) return
+
+    // 実家へのフォーカス
+    if (focusedAreaId === 'home-shingo' && homeLocations.shingo) {
+      mapRef.current.panTo({ lat: homeLocations.shingo.lat, lng: homeLocations.shingo.lng })
+      mapRef.current.setZoom(15)
+      setSelectedHome('shingo')
+      setSelectedArea(null)
+      return
+    }
+    if (focusedAreaId === 'home-airi' && homeLocations.airi) {
+      mapRef.current.panTo({ lat: homeLocations.airi.lat, lng: homeLocations.airi.lng })
+      mapRef.current.setZoom(15)
+      setSelectedHome('airi')
+      setSelectedArea(null)
+      return
+    }
+
+    // エリアへのフォーカス
+    const area = areas.find((a) => a.id === focusedAreaId)
+    if (area && area.latitude != null && area.longitude != null) {
+      mapRef.current.panTo({ lat: area.latitude, lng: area.longitude })
+      mapRef.current.setZoom(15)
+      setSelectedArea(area.id)
+      setSelectedHome(null)
+    }
+  }, [focusedAreaId, areas, homeLocations])
+
+  // 検索ボックスのハンドラ
+  const onSearchLoad = (ref: google.maps.places.SearchBox) => {
+    searchBoxRef.current = ref
+  }
+
+  const onPlacesChanged = () => {
+    const places = searchBoxRef.current?.getPlaces()
+    if (!places || places.length === 0) return
+    const place = places[0]
+    if (place.geometry?.location) {
+      mapRef.current?.panTo(place.geometry.location)
+      mapRef.current?.setZoom(15)
+    }
+  }
 
   // フォーカス対象のエリアを取得
   const focusArea = focusAreaId ? areas.find((a) => a.id === focusAreaId) : null
@@ -222,6 +275,26 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
           </div>
         </div>
       )}
+
+      {/* 検索ボックス（左上にフロート） */}
+      <div className="absolute top-4 left-4 z-[1001]">
+        <StandaloneSearchBox onLoad={onSearchLoad} onPlacesChanged={onPlacesChanged}>
+          <div className="relative">
+            {/* 虫眼鏡アイコン */}
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-sub pointer-events-none"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="場所を検索..."
+              className="w-[280px] bg-white rounded-xl shadow-md pl-9 pr-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+            />
+          </div>
+        </StandaloneSearchBox>
+      </div>
 
       <GoogleMap
         mapContainerStyle={mapContainerStyle}

@@ -23,7 +23,7 @@ export default async function MapPage() {
   // 下見エリア一覧を取得（位置情報の有無にかかわらず全エリア取得）
   const { data: areas } = await supabase
     .from('scouting_areas')
-    .select('id, name, latitude, longitude')
+    .select('id, name, latitude, longitude, nearest_station')
 
   // 実家の位置情報をsettingsテーブルから取得
   const { data: setting } = await supabase
@@ -41,7 +41,7 @@ export default async function MapPage() {
       </div>
     }>
       <MapPageClient
-        areas={(areas as Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude'>[]) || []}
+        areas={(areas as Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude' | 'nearest_station'>[]) || []}
         homeLocations={homeLocations}
       />
     </Suspense>
