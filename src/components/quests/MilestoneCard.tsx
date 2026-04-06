@@ -257,13 +257,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
         )}
 
         {/* --- 展開コンテンツ --- */}
-        <div
-          className={`overflow-hidden transition-all ease-out ${
-            expanded && !isEditing
-              ? 'max-h-[3000px] opacity-100 duration-500'
-              : 'max-h-0 opacity-0 duration-300'
-          }`}
-        >
+        {(expanded || defaultExpanded) && !isEditing && (
           <div className="px-5 pb-5 border-t border-text-sub/5">
             {/* 貯金目標プログレス */}
             {milestone.savings_goal !== null && milestone.savings_goal > 0 && (
@@ -302,7 +296,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* タスク追加モーダル */}
