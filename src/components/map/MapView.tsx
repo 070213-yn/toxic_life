@@ -14,10 +14,11 @@ import type { HomeLocations } from '@/app/(app)/map/page'
 type Props = {
   areas: Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude'>[]
   homeLocations: HomeLocations
-  pinAreaId?: string | null      // ピン配置モード対象のエリアID
-  pinAreaName?: string | null    // ピン配置モード対象のエリア名
-  focusAreaId?: string | null    // フォーカス（ズームイン）対象のエリアID
-  focusedAreaId?: string | null  // サイドバーからのフォーカス対象ID
+  pinAreaId?: string | null
+  pinAreaName?: string | null
+  focusAreaId?: string | null
+  focusedAreaId?: string | null
+  onPinPlaced?: () => void      // ピン配置完了時のコールバック
 }
 
 // useJsApiLoader の libraries は再レンダリングで参照が変わらないようにstatic定義
@@ -32,7 +33,7 @@ const mapContainerStyle = {
 // 関東圏の中心
 const defaultCenter = { lat: 35.68, lng: 139.76 }
 
-export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId }: Props) {
+export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, focusAreaId, focusedAreaId, onPinPlaced }: Props) {
   const router = useRouter()
   const mapRef = useRef<google.maps.Map | null>(null)
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
@@ -50,6 +51,17 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null)
   const [pinSaving, setPinSaving] = useState(false)
   const [pinSaved, setPinSaved] = useState(false)
+
+  // pinAreaIdが変わったらピン配置モードをリセット
+  useEffect(() => {
+    if (pinAreaId) {
+      setPinPlacing(true)
+      setPinPos(null)
+      setPinSaved(false)
+    } else {
+      setPinPlacing(false)
+    }
+  }, [pinAreaId])
 
   // 検索ボックス
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
@@ -208,6 +220,7 @@ export default function MapView({ areas, homeLocations, pinAreaId, pinAreaName, 
       setPinSaved(true)
       setPinPlacing(false)
       router.refresh()
+      onPinPlaced?.()
     }
     setPinSaving(false)
   }

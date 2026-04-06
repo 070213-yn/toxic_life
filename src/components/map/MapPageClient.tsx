@@ -20,21 +20,32 @@ type Props = {
 export default function MapPageClient({ areas, homeLocations }: Props) {
   const [showHomeModal, setShowHomeModal] = useState(false)
   const [focusedAreaId, setFocusedAreaId] = useState<string | null>(null)
-  // モバイル用: サイドバーの開閉
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // サイドバーからのピン配置モード
+  const [sidebarPinAreaId, setSidebarPinAreaId] = useState<string | null>(null)
   const searchParams = useSearchParams()
 
-  // ピン配置モード用: URLの pin_area_id パラメータを取得
-  const pinAreaId = searchParams.get('pin_area_id')
-  // ズーム対象: focus_area_id パラメータ
+  // URL経由 or サイドバー経由のピン配置モード
+  const urlPinAreaId = searchParams.get('pin_area_id')
+  const pinAreaId = sidebarPinAreaId || urlPinAreaId
   const focusAreaId = searchParams.get('focus_area_id')
 
-  // ピン配置対象のエリア名を取得
   const pinArea = pinAreaId ? areas.find((a) => a.id === pinAreaId) : null
 
-  // ピンクリック: フォーカスしてサイドバーのハイライト更新
+  // ピンクリック（設定済み）: フォーカス
   const handlePinClick = (id: string) => {
     setFocusedAreaId(id)
+  }
+
+  // 未設定ピンクリック: ピン配置モードに入る
+  const handleUnpinnedClick = (id: string) => {
+    setSidebarPinAreaId(id)
+    setSidebarOpen(false)
+  }
+
+  // ピン配置完了時のコールバック
+  const handlePinPlaced = () => {
+    setSidebarPinAreaId(null)
   }
 
   // 実家クリック: 実家位置にフォーカス（homeKeyで判定）
@@ -60,6 +71,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
           pinAreaName={pinArea?.name || null}
           focusAreaId={focusAreaId}
           focusedAreaId={focusedAreaId}
+          onPinPlaced={handlePinPlaced}
         />
 
         {/* フロートコントロールパネル（右上） */}
@@ -98,20 +110,18 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
           focusedAreaId={focusedAreaId}
           onPinClick={handlePinClick}
           onHomeClick={handleHomeClick}
+          onUnpinnedClick={handleUnpinnedClick}
         />
       </aside>
 
       {/* モバイル用: スライドアップパネル */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-[1100]">
-          {/* オーバーレイ背景 */}
           <div
             className="absolute inset-0 bg-black/30"
             onClick={() => setSidebarOpen(false)}
           />
-          {/* パネル */}
           <div className="absolute bottom-0 left-0 right-0 bg-bg-card rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col animate-slide-up">
-            {/* ドラッグハンドル */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-primary-light/40 rounded-full" />
             </div>
@@ -122,6 +132,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
               focusedAreaId={focusedAreaId}
               onPinClick={(id) => { handlePinClick(id); setSidebarOpen(false) }}
               onHomeClick={(key) => { handleHomeClick(key); setSidebarOpen(false) }}
+              onUnpinnedClick={(id) => { handleUnpinnedClick(id); setSidebarOpen(false) }}
             />
           </div>
         </div>
@@ -146,6 +157,7 @@ function SidebarContent({
   focusedAreaId,
   onPinClick,
   onHomeClick,
+  onUnpinnedClick,
 }: {
   areas: AreaWithStation[]
   homeLocations: HomeLocations
@@ -153,6 +165,7 @@ function SidebarContent({
   focusedAreaId: string | null
   onPinClick: (id: string) => void
   onHomeClick: (key: 'shingo' | 'airi') => void
+  onUnpinnedClick: (id: string) => void
 }) {
   return (
     <>
@@ -216,11 +229,10 @@ function SidebarContent({
           return (
             <button
               key={area.id}
-              onClick={() => hasPinned ? onPinClick(area.id) : undefined}
-              disabled={!hasPinned}
+              onClick={() => hasPinned ? onPinClick(area.id) : onUnpinnedClick(area.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
                 !hasPinned
-                  ? 'opacity-50 cursor-default'
+                  ? 'opacity-60 hover:bg-accent/10 hover:opacity-100'
                   : focusedAreaId === area.id
                     ? 'bg-primary-light/30'
                     : 'hover:bg-primary-light/20'
@@ -235,8 +247,8 @@ function SidebarContent({
                   <p className="text-sm font-medium text-text truncate">{area.name}</p>
                   {/* 未設定バッジ */}
                   {!hasPinned && (
-                    <span className="shrink-0 text-[10px] text-text-sub bg-primary-light/20 px-1.5 py-0.5 rounded">
-                      未設定
+                    <span className="shrink-0 text-[10px] text-white bg-accent px-1.5 py-0.5 rounded cursor-pointer">
+                      ピンを設定
                     </span>
                   )}
                 </div>
