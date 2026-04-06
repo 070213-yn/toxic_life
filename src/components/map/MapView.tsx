@@ -296,7 +296,9 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
 
     // 通常モード: 選択肢を表示（実家配置中は無視）
     if (!pinAreaId && !homePlacing) {
-      setClickedPos({ lat, lng })
+      // 一度nullにしてから設定（同じ場所クリックでも再表示されるように）
+      setClickedPos(null)
+      setTimeout(() => setClickedPos({ lat, lng }), 0)
       setClickMode(null) // 選択肢モードにリセット
       setNewAreaName('')
       setNewStation('')
