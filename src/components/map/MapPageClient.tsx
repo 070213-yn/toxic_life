@@ -1,22 +1,11 @@
 'use client'
 
 // マップページのメインクライアントコンポーネント
-// react-leafletはSSR不可なのでdynamic importを使用
 import { useState } from 'react'
-import dynamic from 'next/dynamic'
+import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
 import type { ScoutingArea } from '@/lib/types'
 import type { HomeLocations } from '@/app/(app)/map/page'
-
-// SSRを無効化してMapViewを読み込む
-const MapView = dynamic(() => import('./MapView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full bg-bg-card">
-      <p className="text-text-sub text-sm">地図を読み込み中...</p>
-    </div>
-  ),
-})
 
 type Props = {
   areas: Pick<ScoutingArea, 'id' | 'name' | 'latitude' | 'longitude'>[]
@@ -28,7 +17,7 @@ export default function MapPageClient({ areas, homeLocations }: Props) {
 
   return (
     <div className="relative h-[calc(100vh-5rem)] md:h-screen">
-      {/* 地図表示 */}
+      {/* Google Maps表示 */}
       <MapView areas={areas} homeLocations={homeLocations} />
 
       {/* フロートコントロールパネル（右上） */}
