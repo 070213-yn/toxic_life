@@ -36,9 +36,8 @@ export default function LoginPage() {
       return
     }
 
-    // ログイン成功 → ホームへ
-    router.push('/')
-    router.refresh()
+    // ログイン成功 → ホームへ（cookieが反映されるまで少し待つ）
+    window.location.href = '/'
   }
 
   return (
