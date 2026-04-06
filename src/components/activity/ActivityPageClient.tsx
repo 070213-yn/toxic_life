@@ -187,8 +187,7 @@ export function ActivityPageClient({ savings, completedTasks }: Props) {
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto">
       {/* ページヘッダー */}
-      <h1 className="text-xl font-bold text-text mb-1">更新履歴</h1>
-      <p className="text-sm text-text-sub mb-5">ふたりの活動をタイムラインで振り返り</p>
+      <h1 className="text-xl font-bold text-text mb-5">更新履歴</h1>
 
       {/* フィルターエリア */}
       <div className="flex flex-wrap gap-2 mb-6">

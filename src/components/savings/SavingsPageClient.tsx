@@ -32,7 +32,6 @@ export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
             <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">
               Savings
             </h1>
-            <p className="text-sm text-text-sub mt-1">ふたりの貯金記録</p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}

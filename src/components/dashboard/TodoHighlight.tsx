@@ -152,15 +152,14 @@ export default function TodoHighlight({ milestone }: Props) {
       {/* ご褒美 */}
       {milestone.reward && (
         <div className="mt-3 pt-3 border-t border-primary-light/20">
-          <div className="bg-gradient-to-r from-accent-warm/15 via-accent/10 to-primary-light/15 rounded-xl px-4 py-3 border border-accent-warm/20 relative overflow-hidden">
-            {/* キラキラ装飾 */}
-            <span className="absolute top-1 right-3 text-xs animate-pulse opacity-60">✨</span>
-            <span className="absolute bottom-1 right-8 text-[10px] animate-pulse opacity-40" style={{ animationDelay: '0.5s' }}>✨</span>
-            <span className="absolute top-2 left-[40%] text-[8px] animate-pulse opacity-30" style={{ animationDelay: '1s' }}>⭐</span>
+          <div className="bg-gradient-to-r from-accent-warm/25 via-accent/20 to-primary-light/25 rounded-xl px-4 py-3 border border-accent-warm/30 relative overflow-hidden">
+            {/* キラキラ装飾（右上・左下に小さく配置） */}
+            <span className="absolute top-1.5 right-2.5 text-[10px] animate-pulse opacity-50">✨</span>
+            <span className="absolute bottom-1.5 left-2.5 text-[10px] animate-pulse opacity-40" style={{ animationDelay: '0.5s' }}>✨</span>
             <p className="text-sm text-text relative">
               <span className="mr-1.5 text-base">🎁</span>
-              <span className="text-xs text-accent-warm font-medium mr-1">ご褒美:</span>
-              <span className="font-bold">{milestone.reward}</span>
+              <span className="text-xs text-primary font-medium mr-1">ご褒美:</span>
+              <span className="font-bold text-text">{milestone.reward}</span>
             </p>
           </div>
         </div>

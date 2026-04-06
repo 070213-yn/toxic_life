@@ -210,10 +210,9 @@ export default function Navigation() {
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col bg-bg-card border-r border-primary-light/30 shadow-sm">
         {/* ロゴエリア */}
         <div className="px-5 py-6 border-b border-primary-light/30">
-          <h1 className="text-lg font-bold text-primary font-[family-name:var(--font-quicksand)]">
+          <h1 className="text-xl font-bold text-primary font-[family-name:var(--font-quicksand)]">
             卍Toxic Life卍
           </h1>
-          <p className="text-xs text-text-sub mt-0.5">同棲準備トラッカー</p>
         </div>
 
         {/* ナビゲーションリンク */}

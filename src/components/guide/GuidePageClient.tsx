@@ -356,7 +356,6 @@ export default function GuidePageClient({ items }: { items: GuideItem[] }) {
       <div className="px-4 pt-8 pb-6 max-w-3xl mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-text">同棲準備ガイド</h1>
-          <p className="text-sm text-text-sub mt-1">ふたりで確認しながら進めよう</p>
         </div>
 
         {/* 全体の進捗バー */}

@@ -46,7 +46,6 @@ export default async function ShoppingPage() {
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
           Shopping List
         </h1>
-        <p className="text-text-sub text-sm mt-1">ふたりの買い物リスト</p>
       </div>
 
       {/* クライアントコンポーネント */}

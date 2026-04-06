@@ -58,7 +58,6 @@ export default async function QuestsPageServer() {
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
           Quest Board
         </h1>
-        <p className="text-text-sub text-sm mt-1">ふたりの冒険の書</p>
       </div>
 
       {/* クライアントコンポーネント（サマリー＋マイルストーン一覧） */}

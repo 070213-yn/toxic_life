@@ -140,14 +140,6 @@ export default async function DashboardPage() {
   // 進行中マイルストーンを取得
   const currentMilestone = milestones.find((m) => !m.is_completed) || null
 
-  // 時間帯に応じた挨拶を生成
-  const hour = new Date().getHours()
-  const greeting = hour >= 5 && hour < 12
-    ? 'おはよう'
-    : hour >= 12 && hour < 18
-      ? 'こんにちは'
-      : 'こんばんは'
-
   // 今日の日付を日本語フォーマットで表示
   const todayStr = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
@@ -158,12 +150,23 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      {/* ヘッダー: 挨拶と今日の日付 */}
+      {/* ヘッダー: 日付とチャプター期限 */}
       <header className="px-6 pt-6 pb-2 max-w-5xl mx-auto">
-        <p className="text-lg font-bold text-text">
-          {greeting}！
-        </p>
-        <p className="text-sm text-text-sub mt-0.5">{todayStr}</p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-xl font-bold text-text">{todayStr}</p>
+          {currentMilestone?.deadline && (() => {
+            const now = new Date()
+            now.setHours(0, 0, 0, 0)
+            const deadline = new Date(currentMilestone.deadline)
+            deadline.setHours(0, 0, 0, 0)
+            const diffDays = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            return (
+              <p className="text-sm font-medium text-primary">
+                Chapter {currentMilestone.sort_order} 期限まであと {diffDays} 日
+              </p>
+            )
+          })()}
+        </div>
       </header>
 
       {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}

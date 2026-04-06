@@ -107,7 +107,6 @@ export default function TipsPage() {
             番外編
           </div>
           <h1 className="text-2xl font-bold text-text">物件ヒント</h1>
-          <p className="text-sm text-text-sub mt-1">ふたりの家探しガイド</p>
         </div>
       </div>
 

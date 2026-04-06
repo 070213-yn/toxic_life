@@ -103,7 +103,6 @@ export default function ScoutingPageClient({ areas }: Props) {
         <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">
           Scouting
         </h1>
-        <p className="text-sm text-text-sub mt-1">エリア下見メモ</p>
       </div>
 
       {/* ツールバー */}
