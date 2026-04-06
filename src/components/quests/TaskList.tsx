@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
+import { TaskReactions } from '@/components/quests/TaskReactions'
 
 type Props = {
   tasks: Task[]
@@ -103,14 +104,20 @@ export function TaskList({
           {/* タスク一覧 */}
           <div className="space-y-1.5">
             {group.tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                totalSavings={totalSavings}
-                savingsGoal={savingsGoal}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-              />
+              <div key={task.id}>
+                <TaskItem
+                  task={task}
+                  totalSavings={totalSavings}
+                  savingsGoal={savingsGoal}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                />
+                {/* 完了済みタスクにリアクション＆コメント表示 */}
+                <TaskReactions
+                  taskId={task.id}
+                  isCompleted={task.is_completed}
+                />
+              </div>
             ))}
           </div>
         </div>

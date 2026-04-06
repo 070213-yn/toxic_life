@@ -100,6 +100,27 @@ export type ScoutingComment = {
   updated_at: string
 }
 
+// タスクリアクション
+export type TaskReaction = {
+  id: string
+  task_id: string
+  user_id: string
+  emoji: string
+  created_at: string
+  profiles?: Profile
+}
+
+// タスクコメント
+export type TaskComment = {
+  id: string
+  task_id: string
+  user_id: string
+  comment: string
+  created_at: string
+  updated_at: string
+  profiles?: Profile
+}
+
 // アプリ設定
 export type Setting = {
   id: string
