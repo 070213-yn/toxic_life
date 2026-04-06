@@ -121,6 +121,59 @@ export type TaskComment = {
   profiles?: Profile
 }
 
+// 買い物カテゴリ
+export type ShoppingCategory = {
+  id: string
+  name: string
+  emoji: string | null
+  sort_order: number
+  created_at: string
+  shopping_items?: ShoppingItem[]
+}
+
+// 買い物アイテム
+export type ShoppingItem = {
+  id: string
+  category_id: string
+  name: string
+  priority: string
+  status: string
+  planned_timing: string | null
+  memo: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+  shopping_candidates?: ShoppingCandidate[]
+}
+
+// 候補商品
+export type ShoppingCandidate = {
+  id: string
+  item_id: string
+  product_name: string
+  price: number | null
+  url: string | null
+  memo: string | null
+  is_selected: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// 準備ガイドのチェック項目
+export type GuideItem = {
+  id: string
+  section: string
+  title: string
+  is_checked: boolean
+  checked_by: string | null
+  memo: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+  profiles?: Profile
+}
+
 // アプリ設定
 export type Setting = {
   id: string

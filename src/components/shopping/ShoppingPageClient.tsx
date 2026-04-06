@@ -1,0 +1,800 @@
+'use client'
+
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
+import type { ShoppingCategory, ShoppingItem, ShoppingCandidate } from '@/lib/types'
+
+// リアルタイム監視テーブル
+const REALTIME_TABLES = ['shopping_items', 'shopping_candidates']
+
+// ステータス定義
+const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
+  not_started: { label: '未検討', color: 'text-text-sub', bgColor: 'bg-gray-100' },
+  reviewing: { label: '検討中', color: 'text-amber-600', bgColor: 'bg-amber-50' },
+  decided: { label: '仮決定', color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  purchased: { label: '購入済み', color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+}
+
+// 優先度定義
+const PRIORITY_CONFIG: Record<string, { label: string; mark: string }> = {
+  must: { label: '必須', mark: '◎' },
+  nice: { label: 'あると良い', mark: '○' },
+  later: { label: '後で', mark: '△' },
+}
+
+// フィルターチップ
+const STATUS_FILTERS = [
+  { key: 'all', label: '全て' },
+  { key: 'not_started', label: '未検討' },
+  { key: 'reviewing', label: '検討中' },
+  { key: 'decided', label: '仮決定' },
+  { key: 'purchased', label: '購入済み' },
+]
+
+// 金額フォーマット
+function formatPrice(price: number): string {
+  return '¥' + price.toLocaleString('ja-JP')
+}
+
+// カウントアップアニメーション用フック
+function useCountUp(target: number, duration = 600) {
+  const [value, setValue] = useState(0)
+  const prevTarget = useRef(target)
+
+  useEffect(() => {
+    const start = prevTarget.current
+    prevTarget.current = target
+    if (start === target) {
+      setValue(target)
+      return
+    }
+    const startTime = performance.now()
+    const step = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // イージング: easeOutCubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setValue(Math.round(start + (target - start) * eased))
+      if (progress < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }, [target, duration])
+
+  return value
+}
+
+type Props = {
+  categories: ShoppingCategory[]
+}
+
+export default function ShoppingPageClient({ categories }: Props) {
+  // リアルタイム監視
+  useRealtimeRefresh(REALTIME_TABLES)
+
+  // フィルター状態
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [mustOnly, setMustOnly] = useState(false)
+
+  // アコーディオン開閉状態（カテゴリID → 開閉）
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    categories.forEach((cat) => { initial[cat.id] = true })
+    return initial
+  })
+
+  // 候補追加モーダル
+  const [addCandidateModal, setAddCandidateModal] = useState<{ itemId: string } | null>(null)
+  const [candidateForm, setCandidateForm] = useState({ product_name: '', price: '', url: '', memo: '' })
+  const [isSavingCandidate, setIsSavingCandidate] = useState(false)
+
+  // アイテム追加
+  const [addItemModal, setAddItemModal] = useState<{ categoryId: string } | null>(null)
+  const [itemForm, setItemForm] = useState({ name: '', priority: 'must' })
+  const [isSavingItem, setIsSavingItem] = useState(false)
+
+  // アイテム編集
+  const [editItemModal, setEditItemModal] = useState<{ item: ShoppingItem } | null>(null)
+  const [editItemForm, setEditItemForm] = useState({ name: '', priority: 'must', planned_timing: '', memo: '' })
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  // 統計計算
+  const stats = useMemo(() => {
+    let totalPrice = 0
+    let totalItems = 0
+    let decidedItems = 0
+
+    categories.forEach((cat) => {
+      cat.shopping_items?.forEach((item) => {
+        totalItems++
+        const selected = item.shopping_candidates?.find((c) => c.is_selected)
+        if (selected) {
+          decidedItems++
+          if (selected.price) totalPrice += selected.price
+        }
+      })
+    })
+
+    return { totalPrice, totalItems, decidedItems }
+  }, [categories])
+
+  // カウントアップアニメーション
+  const animatedPrice = useCountUp(stats.totalPrice)
+
+  // カテゴリ別統計
+  const categoryStats = useMemo(() => {
+    const result: Record<string, { decided: number; total: number; subtotal: number }> = {}
+    categories.forEach((cat) => {
+      let decided = 0
+      let total = 0
+      let subtotal = 0
+      cat.shopping_items?.forEach((item) => {
+        total++
+        const selected = item.shopping_candidates?.find((c) => c.is_selected)
+        if (selected) {
+          decided++
+          if (selected.price) subtotal += selected.price
+        }
+      })
+      result[cat.id] = { decided, total, subtotal }
+    })
+    return result
+  }, [categories])
+
+  // フィルター適用後のカテゴリ
+  const filteredCategories = useMemo(() => {
+    return categories.map((cat) => ({
+      ...cat,
+      shopping_items: cat.shopping_items?.filter((item) => {
+        if (statusFilter !== 'all' && item.status !== statusFilter) return false
+        if (mustOnly && item.priority !== 'must') return false
+        return true
+      }),
+    })).filter((cat) => (cat.shopping_items?.length ?? 0) > 0)
+  }, [categories, statusFilter, mustOnly])
+
+  // アコーディオン切り替え
+  const toggleCategory = useCallback((catId: string) => {
+    setOpenCategories((prev) => ({ ...prev, [catId]: !prev[catId] }))
+  }, [])
+
+  // ステータス変更
+  const updateItemStatus = useCallback(async (itemId: string, newStatus: string) => {
+    await supabase.from('shopping_items').update({ status: newStatus }).eq('id', itemId)
+  }, [])
+
+  // 候補の仮決定切り替え（ラジオボタン的: 同じアイテムの他の候補をfalseに）
+  const toggleCandidateSelected = useCallback(async (candidate: ShoppingCandidate, itemId: string) => {
+    if (candidate.is_selected) {
+      // 選択解除
+      await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
+      // アイテムステータスを検討中に戻す
+      await supabase.from('shopping_items').update({ status: 'reviewing' }).eq('id', itemId)
+    } else {
+      // 同じアイテムの全候補をfalseに
+      await supabase.from('shopping_candidates').update({ is_selected: false }).eq('item_id', itemId)
+      // この候補を選択
+      await supabase.from('shopping_candidates').update({ is_selected: true }).eq('id', candidate.id)
+      // アイテムステータスを仮決定に
+      await supabase.from('shopping_items').update({ status: 'decided' }).eq('id', itemId)
+    }
+  }, [])
+
+  // 候補追加
+  const handleAddCandidate = useCallback(async () => {
+    if (!addCandidateModal || !candidateForm.product_name.trim()) return
+    setIsSavingCandidate(true)
+
+    // 現在の候補数を取得してsort_orderを決定
+    const { count } = await supabase
+      .from('shopping_candidates')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', addCandidateModal.itemId)
+
+    await supabase.from('shopping_candidates').insert({
+      item_id: addCandidateModal.itemId,
+      product_name: candidateForm.product_name.trim(),
+      price: candidateForm.price ? parseInt(candidateForm.price) : null,
+      url: candidateForm.url.trim() || null,
+      memo: candidateForm.memo.trim() || null,
+      sort_order: (count ?? 0),
+    })
+
+    // まだ未検討なら検討中に変更
+    await supabase
+      .from('shopping_items')
+      .update({ status: 'reviewing' })
+      .eq('id', addCandidateModal.itemId)
+      .eq('status', 'not_started')
+
+    setIsSavingCandidate(false)
+    setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
+    setAddCandidateModal(null)
+  }, [addCandidateModal, candidateForm])
+
+  // 候補削除
+  const deleteCandidate = useCallback(async (candidateId: string) => {
+    if (!confirm('この候補を削除しますか？')) return
+    await supabase.from('shopping_candidates').delete().eq('id', candidateId)
+  }, [])
+
+  // アイテム追加
+  const handleAddItem = useCallback(async () => {
+    if (!addItemModal || !itemForm.name.trim()) return
+    setIsSavingItem(true)
+
+    const { count } = await supabase
+      .from('shopping_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('category_id', addItemModal.categoryId)
+
+    await supabase.from('shopping_items').insert({
+      category_id: addItemModal.categoryId,
+      name: itemForm.name.trim(),
+      priority: itemForm.priority,
+      sort_order: (count ?? 0),
+    })
+
+    setIsSavingItem(false)
+    setItemForm({ name: '', priority: 'must' })
+    setAddItemModal(null)
+  }, [addItemModal, itemForm])
+
+  // アイテム編集
+  const handleEditItem = useCallback(async () => {
+    if (!editItemModal || !editItemForm.name.trim()) return
+    setIsSavingEdit(true)
+
+    await supabase.from('shopping_items').update({
+      name: editItemForm.name.trim(),
+      priority: editItemForm.priority,
+      planned_timing: editItemForm.planned_timing.trim() || null,
+      memo: editItemForm.memo.trim() || null,
+    }).eq('id', editItemModal.item.id)
+
+    setIsSavingEdit(false)
+    setEditItemModal(null)
+  }, [editItemModal, editItemForm])
+
+  // アイテム削除
+  const deleteItem = useCallback(async (itemId: string) => {
+    if (!confirm('このアイテムと候補をすべて削除しますか？')) return
+    await supabase.from('shopping_items').delete().eq('id', itemId)
+  }, [])
+
+  // 編集モーダルを開く
+  const openEditItem = useCallback((item: ShoppingItem) => {
+    setEditItemForm({
+      name: item.name,
+      priority: item.priority,
+      planned_timing: item.planned_timing ?? '',
+      memo: item.memo ?? '',
+    })
+    setEditItemModal({ item })
+  }, [])
+
+  return (
+    <div className="px-4 pb-28 md:pb-8 max-w-2xl mx-auto">
+      {/* 合計金額パネル（sticky） */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-bg/80 backdrop-blur-md">
+        <div className="bg-bg-card rounded-2xl p-4 shadow-sm border border-primary-light/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-text-sub">仮決定 合計金額</p>
+              <p className="text-2xl font-bold text-primary font-[family-name:var(--font-quicksand)] mt-0.5"
+                 style={{ animation: 'count-up-glow 0.6s ease-out' }}
+              >
+                {formatPrice(animatedPrice)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-text-sub">
+                全 {stats.totalItems} アイテム中
+              </p>
+              <p className="text-sm font-medium text-primary mt-0.5">
+                {stats.decidedItems} 件仮決定済み
+              </p>
+            </div>
+          </div>
+          {/* プログレスバー */}
+          <div className="mt-3 h-1.5 bg-primary-light/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${stats.totalItems > 0 ? (stats.decidedItems / stats.totalItems) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* フィルターチップ */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setStatusFilter(f.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+              statusFilter === f.key
+                ? 'bg-primary text-white shadow-sm'
+                : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-primary/40'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <div className="w-px h-6 bg-primary-light/30 self-center mx-1" />
+        <button
+          onClick={() => setMustOnly(!mustOnly)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+            mustOnly
+              ? 'bg-accent text-white shadow-sm'
+              : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-accent/40'
+          }`}
+        >
+          必須のみ
+        </button>
+      </div>
+
+      {/* カテゴリ別アコーディオン */}
+      <div className="mt-6 space-y-4">
+        {filteredCategories.map((cat) => {
+          const catStat = categoryStats[cat.id]
+          const isOpen = openCategories[cat.id] ?? true
+
+          return (
+            <div key={cat.id} className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/20 overflow-hidden">
+              {/* カテゴリヘッダー */}
+              <button
+                onClick={() => toggleCategory(cat.id)}
+                className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-primary-light/10 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">{cat.emoji}</span>
+                  <span className="font-medium text-sm text-text">{cat.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-text-sub">
+                    仮決定 {catStat?.decided ?? 0}/{catStat?.total ?? 0}件
+                    {(catStat?.subtotal ?? 0) > 0 && (
+                      <> | <span className="text-primary font-medium">{formatPrice(catStat.subtotal)}</span></>
+                    )}
+                  </span>
+                  <svg
+                    className={`w-4 h-4 text-text-sub transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* アイテム一覧 */}
+              {isOpen && (
+                <div className="border-t border-primary-light/15">
+                  {cat.shopping_items?.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      onStatusChange={updateItemStatus}
+                      onToggleCandidate={toggleCandidateSelected}
+                      onAddCandidate={(itemId) => {
+                        setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
+                        setAddCandidateModal({ itemId })
+                      }}
+                      onDeleteCandidate={deleteCandidate}
+                      onEdit={openEditItem}
+                      onDelete={deleteItem}
+                    />
+                  ))}
+
+                  {/* アイテム追加ボタン */}
+                  <button
+                    onClick={() => {
+                      setItemForm({ name: '', priority: 'must' })
+                      setAddItemModal({ categoryId: cat.id })
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-2 text-xs text-text-sub hover:text-primary hover:bg-primary-light/10 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    アイテムを追加
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* フィルター結果なし */}
+      {filteredCategories.length === 0 && (
+        <div className="mt-12 text-center">
+          <p className="text-text-sub text-sm">条件に合うアイテムがありません</p>
+        </div>
+      )}
+
+      {/* ===== 候補追加モーダル ===== */}
+      {addCandidateModal && (
+        <BottomSheet onClose={() => setAddCandidateModal(null)} title="候補を追加">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">商品名 *</label>
+              <input
+                type="text"
+                value={candidateForm.product_name}
+                onChange={(e) => setCandidateForm((p) => ({ ...p, product_name: e.target.value }))}
+                placeholder="例: REGZA 43C350X"
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">価格</label>
+              <input
+                type="number"
+                value={candidateForm.price}
+                onChange={(e) => setCandidateForm((p) => ({ ...p, price: e.target.value }))}
+                placeholder="例: 45000"
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">URL</label>
+              <input
+                type="url"
+                value={candidateForm.url}
+                onChange={(e) => setCandidateForm((p) => ({ ...p, url: e.target.value }))}
+                placeholder="https://..."
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">メモ</label>
+              <textarea
+                value={candidateForm.memo}
+                onChange={(e) => setCandidateForm((p) => ({ ...p, memo: e.target.value }))}
+                placeholder="気になるポイントなど"
+                rows={2}
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              />
+            </div>
+            <button
+              onClick={handleAddCandidate}
+              disabled={!candidateForm.product_name.trim() || isSavingCandidate}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+            >
+              {isSavingCandidate ? '追加中...' : '追加する'}
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* ===== アイテム追加モーダル ===== */}
+      {addItemModal && (
+        <BottomSheet onClose={() => setAddItemModal(null)} title="アイテムを追加">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">アイテム名 *</label>
+              <input
+                type="text"
+                value={itemForm.name}
+                onChange={(e) => setItemForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="例: サーキュレーター"
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">優先度</label>
+              <div className="flex gap-2">
+                {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    onClick={() => setItemForm((p) => ({ ...p, priority: key }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${
+                      itemForm.priority === key
+                        ? 'bg-primary text-white'
+                        : 'bg-primary-light/20 text-text-sub hover:bg-primary-light/40'
+                    }`}
+                  >
+                    {cfg.mark} {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={handleAddItem}
+              disabled={!itemForm.name.trim() || isSavingItem}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+            >
+              {isSavingItem ? '追加中...' : '追加する'}
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* ===== アイテム編集モーダル ===== */}
+      {editItemModal && (
+        <BottomSheet onClose={() => setEditItemModal(null)} title="アイテムを編集">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">アイテム名 *</label>
+              <input
+                type="text"
+                value={editItemForm.name}
+                onChange={(e) => setEditItemForm((p) => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">優先度</label>
+              <div className="flex gap-2">
+                {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    onClick={() => setEditItemForm((p) => ({ ...p, priority: key }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${
+                      editItemForm.priority === key
+                        ? 'bg-primary text-white'
+                        : 'bg-primary-light/20 text-text-sub hover:bg-primary-light/40'
+                    }`}
+                  >
+                    {cfg.mark} {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">購入予定時期</label>
+              <input
+                type="text"
+                value={editItemForm.planned_timing}
+                onChange={(e) => setEditItemForm((p) => ({ ...p, planned_timing: e.target.value }))}
+                placeholder="例: 引越し前日"
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-sub mb-1">メモ</label>
+              <textarea
+                value={editItemForm.memo}
+                onChange={(e) => setEditItemForm((p) => ({ ...p, memo: e.target.value }))}
+                rows={2}
+                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              />
+            </div>
+            <button
+              onClick={handleEditItem}
+              disabled={!editItemForm.name.trim() || isSavingEdit}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+            >
+              {isSavingEdit ? '保存中...' : '保存する'}
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+    </div>
+  )
+}
+
+// ===== アイテムカード コンポーネント =====
+function ItemCard({
+  item,
+  onStatusChange,
+  onToggleCandidate,
+  onAddCandidate,
+  onDeleteCandidate,
+  onEdit,
+  onDelete,
+}: {
+  item: ShoppingItem
+  onStatusChange: (id: string, status: string) => void
+  onToggleCandidate: (candidate: ShoppingCandidate, itemId: string) => void
+  onAddCandidate: (itemId: string) => void
+  onDeleteCandidate: (candidateId: string) => void
+  onEdit: (item: ShoppingItem) => void
+  onDelete: (itemId: string) => void
+}) {
+  const statusCfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.not_started
+  const priorityCfg = PRIORITY_CONFIG[item.priority] ?? PRIORITY_CONFIG.must
+  const [showActions, setShowActions] = useState(false)
+
+  return (
+    <div className="px-4 py-3 border-b border-primary-light/10 last:border-b-0 transition-all duration-300"
+         style={{ animation: 'fade-slide-up 0.3s ease-out' }}
+    >
+      {/* 上段: ステータス・アイテム名・優先度 */}
+      <div className="flex items-start gap-2.5">
+        {/* ステータスバッジ（タップで切り替え） */}
+        <button
+          onClick={() => {
+            const statuses = ['not_started', 'reviewing', 'decided', 'purchased']
+            const idx = statuses.indexOf(item.status)
+            const next = statuses[(idx + 1) % statuses.length]
+            onStatusChange(item.id, next)
+          }}
+          className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-200 ${statusCfg.bgColor} ${statusCfg.color}`}
+        >
+          {statusCfg.label}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-text truncate">{item.name}</span>
+            <span className="shrink-0 text-[10px] text-text-sub">{priorityCfg.mark}{priorityCfg.label}</span>
+          </div>
+
+          {/* メモ・タイミング */}
+          {(item.memo || item.planned_timing) && (
+            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              {item.planned_timing && (
+                <span className="text-[10px] text-text-sub">
+                  <svg className="inline w-3 h-3 mr-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  {item.planned_timing}
+                </span>
+              )}
+              {item.memo && <span className="text-[10px] text-text-sub/70">{item.memo}</span>}
+            </div>
+          )}
+        </div>
+
+        {/* アクションボタン */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setShowActions(!showActions)}
+            className="p-1 text-text-sub/40 hover:text-text-sub transition-colors"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
+          {showActions && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />
+              <div className="absolute right-0 top-6 z-20 bg-bg-card rounded-xl shadow-lg border border-primary-light/30 py-1 min-w-[100px]">
+                <button
+                  onClick={() => { onEdit(item); setShowActions(false) }}
+                  className="w-full px-3 py-2 text-left text-xs text-text hover:bg-primary-light/10 transition-colors"
+                >
+                  編集
+                </button>
+                <button
+                  onClick={() => { onDelete(item.id); setShowActions(false) }}
+                  className="w-full px-3 py-2 text-left text-xs text-accent hover:bg-accent/10 transition-colors"
+                >
+                  削除
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 候補商品リスト */}
+      {(item.shopping_candidates?.length ?? 0) > 0 && (
+        <div className="mt-2.5 ml-0.5 space-y-1.5">
+          {item.shopping_candidates?.map((cand) => (
+            <div
+              key={cand.id}
+              className={`flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all duration-200 ${
+                cand.is_selected
+                  ? 'bg-primary-light/30 border border-primary/20'
+                  : 'bg-gray-50 border border-transparent hover:border-primary-light/20'
+              }`}
+            >
+              {/* ラジオボタン */}
+              <button
+                onClick={() => onToggleCandidate(cand, item.id)}
+                className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                  cand.is_selected
+                    ? 'border-primary bg-primary'
+                    : 'border-gray-300 hover:border-primary/50'
+                }`}
+              >
+                {cand.is_selected && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium truncate ${cand.is_selected ? 'text-primary' : 'text-text'}`}>
+                    {cand.product_name}
+                  </span>
+                  {cand.price != null && (
+                    <span className={`shrink-0 text-xs font-medium ${cand.is_selected ? 'text-primary' : 'text-text-sub'}`}>
+                      {formatPrice(cand.price)}
+                    </span>
+                  )}
+                </div>
+                {(cand.url || cand.memo) && (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {cand.url && (
+                      <a
+                        href={cand.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-blue-400 hover:underline truncate max-w-[150px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        リンク
+                      </a>
+                    )}
+                    {cand.memo && <span className="text-[10px] text-text-sub/60 truncate">{cand.memo}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* 候補削除 */}
+              <button
+                onClick={() => onDeleteCandidate(cand.id)}
+                className="shrink-0 p-1 text-text-sub/30 hover:text-accent transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 候補追加ボタン */}
+      <button
+        onClick={() => onAddCandidate(item.id)}
+        className="mt-2 ml-0.5 flex items-center gap-1 text-[11px] text-text-sub hover:text-primary transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        候補を追加
+      </button>
+    </div>
+  )
+}
+
+// ===== ボトムシート コンポーネント =====
+function BottomSheet({
+  onClose,
+  title,
+  children,
+}: {
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      {/* オーバーレイ */}
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+        style={{ animation: 'fade-slide-up 0.2s ease-out' }}
+      />
+      {/* シート本体 */}
+      <div
+        className="relative w-full max-w-md bg-bg-card rounded-t-3xl md:rounded-3xl p-6 pb-8 shadow-xl"
+        style={{ animation: 'fade-slide-up 0.3s ease-out' }}
+      >
+        {/* ドラッグハンドル（モバイル） */}
+        <div className="md:hidden w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold text-text">{title}</h3>
+          <button
+            onClick={onClose}
+            className="p-1 text-text-sub hover:text-text transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  )
+}
