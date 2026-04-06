@@ -25,7 +25,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'ふたりの旅路',
+  title: '卍Toxic Life卍',
   description: '同棲準備トラッカー',
 }
 

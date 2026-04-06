@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import type { Milestone, Task } from '@/lib/types'
+import type { Milestone, Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskList } from './TaskList'
 import { AddTaskModal } from './AddTaskModal'
@@ -11,11 +11,12 @@ type Props = {
   milestone: Milestone
   totalSavings: number
   defaultExpanded: boolean // 初期展開状態
+  profiles: Profile[] // 担当者のアバター表示用
 }
 
 // マイルストーンカード
 // 未完了は常に展開、完了済みは折りたたみ可能
-export function MilestoneCard({ milestone, totalSavings, defaultExpanded }: Props) {
+export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profiles }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [tasks, setTasks] = useState<Task[]>(milestone.tasks ?? [])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -280,6 +281,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded }: Prop
               onTaskUpdate={handleTaskUpdate}
               onTaskDelete={handleTaskDelete}
               onAllTasksComplete={handleMilestoneComplete}
+              profiles={profiles}
             />
 
             {/* インライン目標追加 */}

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import QuestsPage from '@/components/quests/QuestsPage'
-import type { Milestone } from '@/lib/types'
+import type { Milestone, Profile } from '@/lib/types'
 
 // クエストページ（サーバーコンポーネント）
 // データ取得のみ行い、表示は QuestsPage クライアントコンポーネントに委譲
@@ -17,6 +17,13 @@ export default async function QuestsPageServer() {
   const { data: savingsData } = await supabase
     .from('savings')
     .select('amount')
+
+  // プロフィール一覧を取得（担当者のアバター表示に使用）
+  const { data: profilesData } = await supabase
+    .from('profiles')
+    .select('*')
+
+  const profiles: Profile[] = profilesData ?? []
 
   const totalSavings = savingsData?.reduce((sum, s) => sum + (s.amount || 0), 0) ?? 0
 
@@ -58,6 +65,7 @@ export default async function QuestsPageServer() {
       <QuestsPage
         milestones={sortedMilestones}
         totalSavings={totalSavings}
+        profiles={profiles}
       />
     </div>
   )

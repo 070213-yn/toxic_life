@@ -1,17 +1,22 @@
 'use client'
 
-import { useMemo } from 'react'
-import type { Milestone } from '@/lib/types'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import type { Milestone, Profile } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
 import { MilestoneCard } from './MilestoneCard'
 
 type Props = {
   milestones: Milestone[]
   totalSavings: number
+  profiles: Profile[]
 }
 
 // クエストページ全体のクライアントコンポーネント
 // 上部にサマリー、下にマイルストーンカード一覧を表示
-export default function QuestsPage({ milestones, totalSavings }: Props) {
+export default function QuestsPage({ milestones, totalSavings, profiles }: Props) {
+  const router = useRouter()
+
   // 完了/未完了の分類
   const { completed, incomplete, totalCount, completedCount, nextMilestone } = useMemo(() => {
     const comp = milestones.filter((m) => m.is_completed)
@@ -43,8 +48,14 @@ export default function QuestsPage({ milestones, totalSavings }: Props) {
     return diff
   }, [nextMilestone])
 
+  // 既存マイルストーンの最大sort_orderを算出
+  const maxSortOrder = useMemo(() => {
+    if (milestones.length === 0) return 0
+    return Math.max(...milestones.map((m) => m.sort_order))
+  }, [milestones])
+
   return (
-    <div className="px-4 pb-28 max-w-lg mx-auto">
+    <div className="px-3 pb-28 max-w-3xl mx-auto sm:px-6">
       {/* --- 全体の進捗サマリー --- */}
       <div className="mb-6 p-5 rounded-2xl bg-bg-card border border-primary-light/40 shadow-sm">
         {/* クリア数表示 */}
@@ -100,6 +111,7 @@ export default function QuestsPage({ milestones, totalSavings }: Props) {
               milestone={milestone}
               totalSavings={totalSavings}
               defaultExpanded={true}
+              profiles={profiles}
             />
           ))}
 
@@ -115,12 +127,172 @@ export default function QuestsPage({ milestones, totalSavings }: Props) {
                   milestone={milestone}
                   totalSavings={totalSavings}
                   defaultExpanded={false}
+                  profiles={profiles}
                 />
               ))}
             </div>
           )}
         </div>
       )}
+
+      {/* --- チャプター追加ボタン --- */}
+      <AddChapterSection
+        maxSortOrder={maxSortOrder}
+        onAdded={() => router.refresh()}
+      />
+    </div>
+  )
+}
+
+// チャプター（マイルストーン）追加セクション
+function AddChapterSection({
+  maxSortOrder,
+  onAdded,
+}: {
+  maxSortOrder: number
+  onAdded: () => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [deadline, setDeadline] = useState('')
+  const [savingsGoal, setSavingsGoal] = useState('')
+  const [reward, setReward] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // フォームを開く
+  const openForm = useCallback(() => {
+    setIsOpen(true)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }, [])
+
+  // フォームを閉じてリセット
+  const closeForm = useCallback(() => {
+    setIsOpen(false)
+    setTitle('')
+    setDeadline('')
+    setSavingsGoal('')
+    setReward('')
+  }, [])
+
+  // チャプターを追加
+  const handleAdd = useCallback(async () => {
+    if (!title.trim() || saving) return
+    setSaving(true)
+
+    try {
+      const { error } = await supabase.from('milestones').insert({
+        title: title.trim(),
+        deadline: deadline || null,
+        savings_goal: savingsGoal ? Number(savingsGoal) : null,
+        reward: reward.trim() || null,
+        sort_order: maxSortOrder + 1,
+        is_completed: false,
+      })
+
+      if (error) throw error
+
+      closeForm()
+      onAdded()
+    } catch (e) {
+      alert('追加に失敗しました')
+    } finally {
+      setSaving(false)
+    }
+  }, [title, deadline, savingsGoal, reward, maxSortOrder, saving, closeForm, onAdded])
+
+  if (!isOpen) {
+    return (
+      <div className="mt-8 flex justify-center">
+        <button
+          onClick={openForm}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm text-text-sub/60 hover:text-primary border border-dashed border-text-sub/20 hover:border-primary/40 rounded-2xl transition-all duration-200 hover:bg-primary/5"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          チャプターを追加
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="mt-8 p-5 rounded-2xl border border-primary-light/30 bg-bg-card shadow-sm space-y-3"
+      style={{ animation: 'fade-slide-up 0.3s ease-out' }}
+    >
+      <h4 className="text-sm font-bold text-text mb-1">新しいチャプター</h4>
+
+      {/* タイトル */}
+      <div>
+        <label className="block text-xs font-medium text-text-sub mb-1">タイトル *</label>
+        <input
+          ref={inputRef}
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="例: 家具・家電をそろえる"
+          maxLength={100}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-primary/20 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-text-sub/40"
+        />
+      </div>
+
+      {/* 期限 */}
+      <div>
+        <label className="block text-xs font-medium text-text-sub mb-1">期限</label>
+        <input
+          type="date"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-primary/20 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+        />
+      </div>
+
+      {/* 貯金目標額 */}
+      <div>
+        <label className="block text-xs font-medium text-text-sub mb-1">貯金目標額（任意）</label>
+        <input
+          type="number"
+          value={savingsGoal}
+          onChange={(e) => setSavingsGoal(e.target.value)}
+          placeholder="例: 500000"
+          min={0}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-primary/20 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-text-sub/40"
+        />
+      </div>
+
+      {/* ご褒美 */}
+      <div>
+        <label className="block text-xs font-medium text-text-sub mb-1">ご褒美（任意）</label>
+        <input
+          type="text"
+          value={reward}
+          onChange={(e) => setReward(e.target.value)}
+          placeholder="例: 2人でちょっといいディナー"
+          maxLength={100}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-primary/20 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-text-sub/40"
+        />
+      </div>
+
+      {/* ボタン */}
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={handleAdd}
+          disabled={saving || !title.trim()}
+          className="px-5 py-2 text-xs font-medium text-white bg-primary rounded-xl hover:bg-primary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving ? '追加中...' : '追加する'}
+        </button>
+        <button
+          onClick={closeForm}
+          disabled={saving}
+          className="px-4 py-2 text-xs font-medium text-text-sub bg-text-sub/10 rounded-xl hover:bg-text-sub/20 disabled:opacity-50 transition-colors"
+        >
+          キャンセル
+        </button>
+      </div>
     </div>
   )
 }

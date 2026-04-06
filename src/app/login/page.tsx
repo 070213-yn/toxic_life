@@ -49,7 +49,7 @@ export default function LoginPage() {
             <span className="text-3xl">&#x1F3E0;</span>
           </div>
           <h1 className="text-2xl font-bold text-primary font-[family-name:var(--font-quicksand)]">
-            ふたりの旅路
+            卍Toxic Life卍
           </h1>
           <p className="text-sm text-text-sub mt-1">同棲準備トラッカー</p>
         </div>

@@ -59,7 +59,7 @@ export default function MilestoneMap({ milestones }: Props) {
 
       {/* 横スクロールコンテナ（ノード部分のみ） */}
       <div className="overflow-x-auto pb-2 -mx-2">
-        <div className="flex items-center gap-0 min-w-max px-2">
+        <div className="flex items-center gap-0 min-w-max px-2 pt-4">
           {milestones.map((milestone, index) => {
             const isCompleted = milestone.is_completed
             const isCurrent = index === currentIndex

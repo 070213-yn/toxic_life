@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Task } from '@/lib/types'
+import type { Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskReactions } from '@/components/quests/TaskReactions'
 
@@ -12,14 +12,65 @@ type Props = {
   onTaskUpdate: (task: Task) => void
   onTaskDelete: (taskId: string) => void
   onAllTasksComplete: () => void
+  profiles: Profile[] // 担当者のアバター表示用
 }
 
 // 担当者のグループ定義（表示名をマッピング）
 const ASSIGNEE_GROUPS = [
-  { key: 'しんご', label: 'しんご', icon: '🐻' },
-  { key: 'あいり', label: 'あいり', icon: '🐰' },
-  { key: '2人共通', label: '2人で', icon: '👫' },
+  { key: 'しんご', label: 'しんご' },
+  { key: 'あいり', label: 'あいり' },
+  { key: '2人共通', label: '2人で' },
 ] as const
+
+// 担当者別のスタイル定義
+const ASSIGNEE_STYLES: Record<string, {
+  groupBg: string      // グループ背景色
+  borderColor: string  // 左ボーダー色
+  textColor: string    // タスク名のテキスト色
+}> = {
+  'しんご': {
+    groupBg: 'bg-primary/[0.06]',
+    borderColor: 'border-l-primary/60',
+    textColor: 'text-primary',
+  },
+  'あいり': {
+    groupBg: 'bg-accent/[0.06]',
+    borderColor: 'border-l-accent/60',
+    textColor: 'text-accent',
+  },
+  '2人共通': {
+    groupBg: 'bg-amber-500/[0.06]',
+    borderColor: 'border-l-amber-400/60',
+    textColor: 'text-text',
+  },
+}
+
+// 担当者名からプロフィールを検索するヘルパー
+function findProfile(profiles: Profile[], assignee: string): Profile | undefined {
+  // display_nameで一致を探す
+  return profiles.find((p) => p.display_name === assignee)
+}
+
+// アバター表示コンポーネント（URLなら小さい丸画像、絵文字ならそのまま表示）
+function AvatarIcon({ profile }: { profile: Profile | undefined }) {
+  if (!profile?.avatar_emoji) return null
+
+  // URLかどうか判定（http で始まるか）
+  const isUrl = profile.avatar_emoji.startsWith('http')
+
+  if (isUrl) {
+    return (
+      <img
+        src={profile.avatar_emoji}
+        alt={profile.display_name}
+        className="w-4 h-4 rounded-full object-cover"
+      />
+    )
+  }
+
+  // 絵文字の場合
+  return <span className="text-sm leading-none">{profile.avatar_emoji}</span>
+}
 
 // タスクリストコンポーネント
 // 担当者別にグループ化して表示、チェックボックスで完了切り替え
@@ -30,6 +81,7 @@ export function TaskList({
   onTaskUpdate,
   onTaskDelete,
   onAllTasksComplete,
+  profiles,
 }: Props) {
   // 前回の完了数を記録（全タスク完了検知用）
   const prevCompletedRef = useRef(tasks.filter((t) => t.is_completed).length)
@@ -90,15 +142,20 @@ export function TaskList({
   const grouped = ASSIGNEE_GROUPS.map((group) => ({
     ...group,
     tasks: tasks.filter((t) => t.assignee === group.key),
+    profile: findProfile(profiles, group.key),
+    styles: ASSIGNEE_STYLES[group.key] ?? ASSIGNEE_STYLES['2人共通'],
   })).filter((g) => g.tasks.length > 0)
 
   return (
-    <div className="pt-4 space-y-5">
+    <div className="pt-4 space-y-4">
       {grouped.map((group) => (
-        <div key={group.key}>
-          {/* 担当者ラベル */}
+        <div
+          key={group.key}
+          className={`rounded-xl ${group.styles.groupBg} border-l-[3px] ${group.styles.borderColor} px-3 py-2.5`}
+        >
+          {/* 担当者ラベル（アバター付き） */}
           <p className="text-xs font-bold text-text-sub/80 mb-2 flex items-center gap-1.5">
-            <span>{group.icon}</span>
+            <AvatarIcon profile={group.profile} />
             {group.label}
           </p>
 
@@ -112,6 +169,7 @@ export function TaskList({
                   savingsGoal={savingsGoal}
                   onToggle={handleToggle}
                   onDelete={handleDelete}
+                  textColorClass={group.styles.textColor}
                 />
                 {/* 完了済みタスクにリアクション表示 */}
                 <TaskReactions
@@ -135,12 +193,14 @@ function TaskItem({
   savingsGoal,
   onToggle,
   onDelete,
+  textColorClass,
 }: {
   task: Task
   totalSavings: number
   savingsGoal: number | null
   onToggle: (task: Task) => void
   onDelete: (taskId: string) => void
+  textColorClass: string
 }) {
   const [justChecked, setJustChecked] = useState(false)
 
@@ -166,7 +226,7 @@ function TaskItem({
 
   return (
     <div
-      className={`group flex items-start gap-3 py-2 px-3 rounded-xl transition-all duration-200 hover:bg-primary/5 ${
+      className={`group flex items-start gap-3 py-2 px-3 rounded-xl transition-all duration-200 hover:bg-white/40 ${
         task.is_completed ? 'opacity-50' : ''
       }`}
     >
@@ -194,7 +254,7 @@ function TaskItem({
       <div className="flex-1 min-w-0">
         <p
           className={`text-sm leading-snug transition-all duration-300 ${
-            task.is_completed ? 'line-through text-text-sub' : 'text-text'
+            task.is_completed ? 'line-through text-text-sub' : textColorClass
           }`}
         >
           {task.title}
