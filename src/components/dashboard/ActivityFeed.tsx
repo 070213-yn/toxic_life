@@ -30,9 +30,9 @@ function timeAgo(dateStr: string): string {
 export default function ActivityFeed({ activities }: Props) {
   if (activities.length === 0) {
     return (
-      <div className="rounded-2xl bg-bg-card p-6 shadow-sm">
+      <div className="rounded-2xl bg-bg-card p-6 shadow-sm w-full flex-1 flex flex-col">
         <h2 className="text-lg font-bold text-text mb-4">最近のできごと</h2>
-        <div className="flex flex-col items-center py-6">
+        <div className="flex flex-col items-center py-6 flex-1 justify-center">
           <div className="bg-primary-light/20 rounded-full p-4 mb-3">
             <svg className="w-10 h-10 text-text-sub/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <circle cx="12" cy="12" r="10" />
@@ -47,10 +47,10 @@ export default function ActivityFeed({ activities }: Props) {
   }
 
   return (
-    <div className="rounded-2xl bg-bg-card p-6 shadow-sm">
+    <div className="rounded-2xl bg-bg-card p-6 shadow-sm w-full flex-1 flex flex-col">
       <h2 className="text-lg font-bold text-text mb-4">最近のできごと</h2>
 
-      <ul className="space-y-4">
+      <ul className="space-y-4 flex-1">
         {activities.slice(0, 5).map((activity, index) => (
           <li key={index} className="flex items-start gap-3">
             {/* アイコン */}

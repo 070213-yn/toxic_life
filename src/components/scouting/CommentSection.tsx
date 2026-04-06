@@ -54,10 +54,14 @@ function CommentBubble({
   return (
     <div className={`flex gap-3 ${isOwn ? '' : 'flex-row-reverse'}`}>
       {/* アバター */}
-      <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm ${
+      <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm overflow-hidden ${
         isOwn ? 'bg-primary-light/50' : 'bg-accent/20'
       }`}>
-        {avatarEmoji || '\u{1F464}'}
+        {avatarEmoji && (avatarEmoji.startsWith('http') || avatarEmoji.startsWith('/')) ? (
+          <img src={avatarEmoji} alt="" className="w-full h-full object-cover" />
+        ) : (
+          avatarEmoji || '\u{1F464}'
+        )}
       </div>
 
       {/* 吹き出し本体 */}

@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import QuestsPageClient from '@/components/quests/QuestsPageClient'
+import QuestsPage from '@/components/quests/QuestsPage'
 import type { Milestone } from '@/lib/types'
 
-// マイルストーン＆タスク管理ページ（サーバーコンポーネント）
-// データ取得のみ行い、表示・フィルタリングは QuestsPageClient に委譲
-export default async function QuestsPage() {
+// クエストページ（サーバーコンポーネント）
+// データ取得のみ行い、表示は QuestsPage クライアントコンポーネントに委譲
+export default async function QuestsPageServer() {
   const supabase = await createClient()
 
   // マイルストーン一覧をタスク含めて取得（sort_order順）
@@ -13,7 +13,7 @@ export default async function QuestsPage() {
     .select('*, tasks(*)')
     .order('sort_order', { ascending: true })
 
-  // 貯金合計を取得（自動達成判定に使用）
+  // 貯金合計を取得（貯金連動タスクの自動判定に使用）
   const { data: savingsData } = await supabase
     .from('savings')
     .select('amount')
@@ -47,15 +47,15 @@ export default async function QuestsPage() {
   return (
     <div className="min-h-screen bg-bg">
       {/* ヘッダー */}
-      <div className="px-4 pt-8 pb-2 text-center">
+      <div className="px-4 pt-8 pb-4 text-center">
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
           Quest Board
         </h1>
         <p className="text-text-sub text-sm mt-1">ふたりの冒険の書</p>
       </div>
 
-      {/* クライアントコンポーネント（月セレクター＋マイルストーン一覧） */}
-      <QuestsPageClient
+      {/* クライアントコンポーネント（サマリー＋マイルストーン一覧） */}
+      <QuestsPage
         milestones={sortedMilestones}
         totalSavings={totalSavings}
       />

@@ -85,15 +85,15 @@ export default function CountdownBanner({ moveInDate }: Props) {
   }
 
   return (
-    <div className="relative rounded-2xl overflow-hidden shadow-sm group cursor-pointer" onClick={() => setEditing(true)}>
+    <div className="relative rounded-2xl overflow-hidden shadow-sm group cursor-pointer flex-1 flex flex-col" onClick={() => setEditing(true)}>
       {/* 背景写真 */}
       <div className="absolute inset-0">
         <Image src="/images/couple2.jpg" alt="" fill className="object-cover" priority />
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600/55 via-purple-500/45 to-pink-400/35" />
       </div>
 
-      {/* コンテンツ */}
-      <div className="relative px-5 py-4 text-center">
+      {/* コンテンツ - 縦中央に配置 */}
+      <div className="relative px-5 py-4 text-center flex-1 flex flex-col items-center justify-center">
         <p className="text-white/85 text-xs font-medium tracking-wide mb-1">同棲開始まで</p>
         <div className="flex items-baseline justify-center gap-1">
           <span className="text-white text-6xl font-extrabold tracking-tight leading-none drop-shadow-md">

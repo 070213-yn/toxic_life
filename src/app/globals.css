@@ -109,3 +109,31 @@ body {
     transform: translateY(0);
   }
 }
+
+/* エリアカードのサムネイルゆっくりズームアニメーション */
+@keyframes slow-zoom {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-slow-zoom {
+  animation: slow-zoom 10s ease-in-out infinite;
+}
+
+/* 各写真に異なるディレイを設定 */
+.animate-slow-zoom-d0 {
+  animation: slow-zoom 10s ease-in-out infinite;
+  animation-delay: 0s;
+}
+.animate-slow-zoom-d1 {
+  animation: slow-zoom 10s ease-in-out infinite;
+  animation-delay: 2.5s;
+}
+.animate-slow-zoom-d2 {
+  animation: slow-zoom 10s ease-in-out infinite;
+  animation-delay: 5s;
+}
+.animate-slow-zoom-d3 {
+  animation: slow-zoom 10s ease-in-out infinite;
+  animation-delay: 7.5s;
+}

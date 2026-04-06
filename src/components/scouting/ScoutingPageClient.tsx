@@ -10,21 +10,40 @@ import AddAreaModal from './AddAreaModal'
 import CompareView from './CompareView'
 import EmptyState from '@/components/EmptyState'
 
-type SortKey = 'visited_date' | 'rating' | 'rent'
+// 並び替えオプション
+const SORT_OPTIONS = [
+  { key: 'visited_date', label: '訪問日順' },
+  { key: 'rating', label: '総合評価順' },
+  { key: 'rent', label: '家賃順' },
+  { key: 'affordability', label: '家賃の手頃さ順' },
+  { key: 'shopping', label: '買い物の便利さ順' },
+  { key: 'walkability', label: 'まちの雰囲気順' },
+  { key: 'environment', label: '住環境順' },
+  { key: 'safety', label: '治安順' },
+  { key: 'overall', label: '住みたい度順' },
+] as const
+
+type SortKey = (typeof SORT_OPTIONS)[number]['key']
 
 type Props = {
   areas: ScoutingArea[]
 }
 
-// 評価の平均を計算するユーティリティ
+// 全カテゴリの評価平均
 function getAverageRating(area: ScoutingArea): number {
   const ratings = area.scouting_ratings || []
   if (ratings.length === 0) return 0
-  const sum = ratings.reduce((acc, r) => acc + r.rating, 0)
-  return sum / ratings.length
+  return ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length
 }
 
-// 家賃メモから数値を抽出する簡易パーサー（ソート用）
+// 特定カテゴリの評価平均
+function getCategoryAvg(area: ScoutingArea, category: string): number {
+  const ratings = (area.scouting_ratings || []).filter((r) => r.category === category)
+  if (ratings.length === 0) return 0
+  return ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length
+}
+
+// 家賃メモから数値を抽出
 function extractRentNumber(memo: string | null): number {
   if (!memo) return Infinity
   const match = memo.match(/(\d+)/)
@@ -35,61 +54,47 @@ export default function ScoutingPageClient({ areas }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('visited_date')
 
-  // 比較モードの状態管理
   const [compareMode, setCompareMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showCompare, setShowCompare] = useState(false)
 
-  // 並び替えロジック
+  // 並び替え
   const sortedAreas = [...areas].sort((a, b) => {
     switch (sortKey) {
-      case 'visited_date': {
-        const dateA = a.visited_date || '1970-01-01'
-        const dateB = b.visited_date || '1970-01-01'
-        return dateB.localeCompare(dateA)
-      }
-      case 'rating': {
+      case 'visited_date':
+        return (b.visited_date || '1970-01-01').localeCompare(a.visited_date || '1970-01-01')
+      case 'rating':
         return getAverageRating(b) - getAverageRating(a)
-      }
-      case 'rent': {
+      case 'rent':
         return extractRentNumber(a.rent_memo) - extractRentNumber(b.rent_memo)
-      }
       default:
-        return 0
+        // カテゴリ別ソート
+        return getCategoryAvg(b, sortKey) - getCategoryAvg(a, sortKey)
     }
   })
 
-  // 比較対象の選択切り替え（最大3件まで）
   const handleToggleSelect = useCallback((areaId: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(areaId)) {
-        next.delete(areaId)
-      } else if (next.size < 3) {
-        next.add(areaId)
-      }
+      if (next.has(areaId)) next.delete(areaId)
+      else if (next.size < 3) next.add(areaId)
       return next
     })
   }, [])
 
-  // 比較モードの開始・終了
   const toggleCompareMode = useCallback(() => {
     setCompareMode((prev) => {
-      if (prev) {
-        // 終了時: 選択をリセット
-        setSelectedIds(new Set())
-      }
+      if (prev) setSelectedIds(new Set())
       return !prev
     })
   }, [])
 
-  // 比較対象のエリアデータ
   const selectedAreas = areas.filter((a) => selectedIds.has(a.id))
 
   return (
     <div className="min-h-screen bg-bg">
       {/* ヘッダー */}
-      <div className="px-4 pt-8 pb-2 max-w-4xl mx-auto">
+      <div className="px-6 pt-8 pb-2 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">
           Scouting
         </h1>
@@ -97,7 +102,7 @@ export default function ScoutingPageClient({ areas }: Props) {
       </div>
 
       {/* ツールバー */}
-      <div className="px-4 max-w-4xl mx-auto mt-4 flex items-center justify-between gap-3">
+      <div className="px-6 max-w-7xl mx-auto mt-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowModal(true)}
@@ -109,7 +114,6 @@ export default function ScoutingPageClient({ areas }: Props) {
             エリアを追加
           </button>
 
-          {/* 比較ボタン（エリアが2件以上あるときのみ表示） */}
           {areas.length >= 2 && (
             <button
               onClick={toggleCompareMode}
@@ -119,9 +123,6 @@ export default function ScoutingPageClient({ areas }: Props) {
                   : 'bg-bg-card text-text-sub border border-primary-light/40 hover:border-primary/40 hover:text-primary'
               }`}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
               {compareMode ? 'やめる' : '比較する'}
             </button>
           )}
@@ -132,15 +133,15 @@ export default function ScoutingPageClient({ areas }: Props) {
           onChange={(e) => setSortKey(e.target.value as SortKey)}
           className="text-sm text-text-sub bg-bg-card border border-primary-light/40 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
-          <option value="visited_date">訪問日順</option>
-          <option value="rating">評価順</option>
-          <option value="rent">家賃順</option>
+          {SORT_OPTIONS.map(({ key, label }) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
         </select>
       </div>
 
       {/* 比較モード時のステータスバー */}
       {compareMode && (
-        <div className="px-4 max-w-4xl mx-auto mt-3">
+        <div className="px-6 max-w-7xl mx-auto mt-3">
           <div className="bg-primary-light/30 rounded-xl px-4 py-3 flex items-center justify-between">
             <p className="text-sm text-text">
               {selectedIds.size === 0
@@ -160,7 +161,7 @@ export default function ScoutingPageClient({ areas }: Props) {
       )}
 
       {/* エリアカードグリッド */}
-      <div className="px-4 max-w-4xl mx-auto mt-5 pb-24 md:pb-8">
+      <div className="px-6 max-w-7xl mx-auto mt-5 pb-24 md:pb-8">
         {sortedAreas.length === 0 ? (
           <div className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/30">
             <EmptyState
@@ -170,7 +171,7 @@ export default function ScoutingPageClient({ areas }: Props) {
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedAreas.map((area) => (
               <AreaCard
                 key={area.id}
@@ -184,17 +185,9 @@ export default function ScoutingPageClient({ areas }: Props) {
         )}
       </div>
 
-      {/* エリア追加モーダル */}
-      {showModal && (
-        <AddAreaModal onClose={() => setShowModal(false)} />
-      )}
-
-      {/* 比較ビューモーダル */}
+      {showModal && <AddAreaModal onClose={() => setShowModal(false)} />}
       {showCompare && selectedAreas.length >= 2 && (
-        <CompareView
-          areas={selectedAreas}
-          onClose={() => setShowCompare(false)}
-        />
+        <CompareView areas={selectedAreas} onClose={() => setShowCompare(false)} />
       )}
     </div>
   )

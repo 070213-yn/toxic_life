@@ -1,9 +1,7 @@
 'use client'
 
-// 評価セクション全体
-// 7つの評価項目について、しんご・あいり2人分の星評価を横並び比較表示
-// 自分の評価のみ変更可能。Supabaseにupsertでリアルタイム保存
-// 星タップ時にscaleバウンスアニメーション付き
+// 評価セクション
+// しんご・あいりを行で分けて、各カテゴリの★をカード形式で表示
 
 import { useState, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase/client'
@@ -11,18 +9,15 @@ import { useAuth } from '@/components/AuthProvider'
 import type { ScoutingRating } from '@/lib/types'
 import StarRating from './StarRating'
 
-// 評価カテゴリ定義
 const RATING_CATEGORIES = [
   { category: 'affordability', label: '家賃の手頃さ', icon: '\u{1F3E0}' },
-  { category: 'access', label: 'アクセスの良さ', icon: '\u{1F683}' },
   { category: 'shopping', label: '買い物の便利さ', icon: '\u{1F6D2}' },
-  { category: 'walkability', label: 'お散歩の楽しさ', icon: '\u{1F333}' },
+  { category: 'walkability', label: 'まちの雰囲気', icon: '\u{1F333}' },
   { category: 'environment', label: '住環境', icon: '\u{1F3D8}\u{FE0F}' },
-  { category: 'room_options', label: '部屋の広さ', icon: '\u{1F3AE}' },
+  { category: 'safety', label: '治安', icon: '\u{1F6E1}\u{FE0F}' },
   { category: 'overall', label: 'ここに住みたい度', icon: '\u{1F495}' },
 ] as const
 
-// プロフィール付き評価型
 type RatingWithProfile = ScoutingRating & {
   profiles?: { id: string; display_name: string; avatar_emoji: string } | null
 }
@@ -32,219 +27,119 @@ type Props = {
   ratings: RatingWithProfile[]
 }
 
-// 1つの評価カテゴリ行（2人分の星評価を横並び表示）
-function CategoryRow({
-  category,
-  label,
-  icon,
-  areaId,
-  ratings,
-  currentUserId,
-  userProfiles,
-  onRatingChange,
-}: {
-  category: string
-  label: string
-  icon: string
-  areaId: string
-  ratings: RatingWithProfile[]
-  currentUserId: string | undefined
-  userProfiles: Map<string, { displayName: string; avatarEmoji: string }>
-  onRatingChange: (category: string, userId: string, rating: number) => void
-}) {
-  const [saving, setSaving] = useState(false)
-  const [bouncing, setBouncing] = useState(false)
-
-  // 2人分のローカル評価値
+export default function RatingSection({ areaId, ratings }: Props) {
+  const { user, profile } = useAuth()
   const [localRatings, setLocalRatings] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {}
     ratings.forEach((r) => {
-      map[r.user_id] = r.rating
+      map[`${r.category}:${r.user_id}`] = r.rating
     })
     return map
   })
+  const [savingKey, setSavingKey] = useState<string | null>(null)
 
-  // 全ユーザーID（自分が先）
-  const userIds = useMemo(() => {
-    const ids = new Set(ratings.map((r) => r.user_id))
-    if (currentUserId) ids.add(currentUserId)
-    return Array.from(ids).sort((a, b) => {
-      if (a === currentUserId) return -1
-      if (b === currentUserId) return 1
-      return 0
-    })
-  }, [ratings, currentUserId])
-
-  // 評価変更ハンドラ（Supabaseにupsert）
-  const handleRate = useCallback(
-    async (newValue: number) => {
-      if (!currentUserId) return
-      setSaving(true)
-      setBouncing(true)
-      setTimeout(() => setBouncing(false), 300)
-
-      // 楽観的更新
-      setLocalRatings((prev) => ({ ...prev, [currentUserId]: newValue }))
-      onRatingChange(category, currentUserId, newValue)
-
-      const { error } = await supabase
-        .from('scouting_ratings')
-        .upsert(
-          {
-            area_id: areaId,
-            user_id: currentUserId,
-            category,
-            rating: newValue,
-          },
-          { onConflict: 'area_id,user_id,category' }
-        )
-
-      if (error) {
-        console.error('評価の保存に失敗:', error)
-        const original = ratings.find((r) => r.user_id === currentUserId)
-        setLocalRatings((prev) => ({
-          ...prev,
-          [currentUserId]: original?.rating || 0,
-        }))
-      }
-
-      setSaving(false)
-    },
-    [currentUserId, areaId, category, ratings, onRatingChange]
-  )
-
-  return (
-    <div className="py-3 border-b border-primary-light/15 last:border-b-0">
-      {/* カテゴリ名 */}
-      <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-base">{icon}</span>
-        <span className="text-sm font-medium text-text">{label}</span>
-        {saving && (
-          <span className="text-xs text-success ml-auto animate-[fade-slide-up_0.3s_ease-out]">
-            <svg className="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </span>
-        )}
-      </div>
-
-      {/* 2人分の評価を横並び比較 */}
-      <div className="grid grid-cols-2 gap-3 pl-1">
-        {userIds.map((userId) => {
-          const isOwn = userId === currentUserId
-          const value = localRatings[userId] || 0
-          const profile = userProfiles.get(userId)
-          return (
-            <div
-              key={userId}
-              className={`rounded-xl px-3 py-2 ${
-                isOwn
-                  ? 'bg-primary-light/20'
-                  : 'bg-accent/8'
-              }`}
-            >
-              <span className="text-xs text-text-sub block mb-1">
-                {profile?.displayName || (isOwn ? 'わたし' : '相手')}
-              </span>
-              <div className={`${bouncing && isOwn ? 'animate-[check-bounce_0.3s_ease-out]' : ''}`}>
-                <StarRating
-                  value={value}
-                  onChange={isOwn ? handleRate : undefined}
-                  size="md"
-                  readonly={!isOwn}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-export default function RatingSection({ areaId, ratings }: Props) {
-  const { user, profile } = useAuth()
-  // 楽観的更新を追跡（総合スコア再計算用）
-  const [ratingOverrides, setRatingOverrides] = useState<Record<string, number>>({})
-
-  const handleRatingChange = useCallback(
-    (category: string, userId: string, rating: number) => {
-      setRatingOverrides((prev) => ({
-        ...prev,
-        [`${category}:${userId}`]: rating,
-      }))
-    },
-    []
-  )
-
-  // ユーザープロフィール情報マッピング
+  // ユーザープロフィール
   const userProfiles = useMemo(() => {
     const map = new Map<string, { displayName: string; avatarEmoji: string }>()
-
     ratings.forEach((r) => {
       if (r.profiles) {
         map.set(r.user_id, {
           displayName: r.profiles.display_name || '名無し',
-          avatarEmoji: r.profiles.avatar_emoji || '\u{1F464}',
+          avatarEmoji: r.profiles.avatar_emoji || '',
         })
       }
     })
-
-    // 自分の情報は必ず追加
     if (user && profile) {
       map.set(user.id, {
         displayName: profile.display_name || 'わたし',
-        avatarEmoji: profile.avatar_emoji || '\u{1F464}',
+        avatarEmoji: profile.avatar_emoji || '',
       })
     }
-
     return map
   }, [ratings, user, profile])
 
-  // 総合スコア計算（全項目 x 全ユーザーの平均）
-  const totalScore = useMemo(() => {
-    let sum = 0
-    let count = 0
+  // 全ユーザーID（自分が先）
+  const userIds = useMemo(() => {
+    const ids = new Set(ratings.map((r) => r.user_id))
+    if (user) ids.add(user.id)
+    return Array.from(ids).sort((a, b) => {
+      if (a === user?.id) return -1
+      if (b === user?.id) return 1
+      return 0
+    })
+  }, [ratings, user])
 
-    RATING_CATEGORIES.forEach(({ category }) => {
-      const categoryRatings = ratings.filter((r) => r.category === category)
-      categoryRatings.forEach((r) => {
-        const key = `${category}:${r.user_id}`
-        const value = ratingOverrides[key] ?? r.rating
-        sum += value
-        count++
+  // 評価変更
+  const handleRate = useCallback(
+    async (category: string, newValue: number) => {
+      if (!user) return
+      const key = `${category}:${user.id}`
+      setSavingKey(key)
+      setLocalRatings((prev) => ({ ...prev, [key]: newValue }))
+
+      await supabase
+        .from('scouting_ratings')
+        .upsert(
+          { area_id: areaId, user_id: user.id, category, rating: newValue },
+          { onConflict: 'area_id,user_id,category' }
+        )
+
+      setTimeout(() => setSavingKey(null), 800)
+    },
+    [user, areaId]
+  )
+
+  // 各ユーザーの平均
+  const getUserAvg = useCallback(
+    (userId: string) => {
+      let sum = 0, count = 0
+      RATING_CATEGORIES.forEach(({ category }) => {
+        const val = localRatings[`${category}:${userId}`]
+        if (val) { sum += val; count++ }
       })
-    })
+      return count > 0 ? (sum / count).toFixed(1) : '-'
+    },
+    [localRatings]
+  )
 
-    // 新規評価（元データにない分）
-    Object.entries(ratingOverrides).forEach(([key, value]) => {
-      const [cat, uid] = key.split(':')
-      const existing = ratings.find(
-        (r) => r.category === cat && r.user_id === uid
-      )
-      if (!existing) {
-        sum += value
-        count++
-      }
+  // 総合スコア
+  const totalScore = useMemo(() => {
+    let sum = 0, count = 0
+    Object.values(localRatings).forEach((v) => {
+      if (v > 0) { sum += v; count++ }
     })
-
     return count > 0 ? (sum / count).toFixed(1) : '-'
-  }, [ratings, ratingOverrides])
+  }, [localRatings])
 
-  // スコアに応じた色とラベル
-  const scoreInfo = useMemo(() => {
-    const score = parseFloat(totalScore)
-    if (isNaN(score)) return { color: 'text-text-sub', label: '' }
-    if (score >= 4.5) return { color: 'text-success', label: '最高！' }
-    if (score >= 4) return { color: 'text-success', label: 'いい感じ' }
-    if (score >= 3) return { color: 'text-accent-warm', label: 'まあまあ' }
-    if (score >= 2) return { color: 'text-primary', label: 'うーん' }
-    return { color: 'text-accent', label: 'ちょっと...' }
+  const scoreLabel = useMemo(() => {
+    const s = parseFloat(totalScore)
+    if (isNaN(s)) return ''
+    if (s >= 4.5) return '最高！'
+    if (s >= 4) return 'いい感じ'
+    if (s >= 3) return 'まあまあ'
+    return 'うーん'
   }, [totalScore])
+
+  // アバター表示ヘルパー
+  const renderAvatar = (emoji: string, size: number) => {
+    const isImage = emoji && (emoji.startsWith('http') || emoji.startsWith('/'))
+    return (
+      <div
+        className="rounded-full bg-primary-light/30 flex items-center justify-center overflow-hidden shrink-0"
+        style={{ width: size, height: size }}
+      >
+        {isImage ? (
+          <img src={emoji} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span style={{ fontSize: size * 0.5 }}>{emoji || '👤'}</span>
+        )}
+      </div>
+    )
+  }
 
   return (
     <section className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/30 overflow-hidden">
-      {/* セクションヘッダー */}
+      {/* ヘッダー */}
       <div className="px-5 pt-5 pb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-bold text-text">
           <svg className="w-4 h-4 text-accent-warm" fill="currentColor" viewBox="0 0 20 20">
@@ -252,34 +147,71 @@ export default function RatingSection({ areaId, ratings }: Props) {
           </svg>
           ふたりの評価
         </h2>
-        {/* 総合スコアバッジ */}
         <div className="flex items-center gap-2 bg-primary-light/25 rounded-full px-3.5 py-1.5">
-          {scoreInfo.label && (
-            <span className="text-xs text-text-sub">{scoreInfo.label}</span>
-          )}
-          <span className={`text-lg font-bold ${scoreInfo.color}`}>{totalScore}</span>
+          {scoreLabel && <span className="text-xs text-text-sub">{scoreLabel}</span>}
+          <span className="text-lg font-bold text-primary">{totalScore}</span>
         </div>
       </div>
 
-      {/* 評価項目リスト */}
-      <div className="px-5 pb-5">
-        {RATING_CATEGORIES.map(({ category, label, icon }) => (
-          <CategoryRow
-            key={category}
-            category={category}
-            label={label}
-            icon={icon}
-            areaId={areaId}
-            ratings={ratings.filter((r) => r.category === category)}
-            currentUserId={user?.id}
-            userProfiles={userProfiles}
-            onRatingChange={handleRatingChange}
-          />
-        ))}
+      {/* ユーザーごとの評価行 */}
+      <div className="px-4 pb-5 space-y-4">
+        {userIds.map((userId) => {
+          const isOwn = userId === user?.id
+          const prof = userProfiles.get(userId)
+          const avg = getUserAvg(userId)
+
+          return (
+            <div
+              key={userId}
+              className={`rounded-xl p-4 ${isOwn ? 'bg-primary-light/15 border border-primary-light/30' : 'bg-accent/5 border border-accent/15'}`}
+            >
+              {/* ユーザー名 + 平均 */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {renderAvatar(prof?.avatarEmoji || '', 28)}
+                  <span className="text-sm font-medium text-text">
+                    {prof?.displayName || (isOwn ? 'わたし' : '相手')}
+                  </span>
+                </div>
+                <div className={`text-sm font-bold px-2.5 py-0.5 rounded-full ${isOwn ? 'bg-primary-light/40 text-primary' : 'bg-accent/15 text-accent'}`}>
+                  {avg}
+                </div>
+              </div>
+
+              {/* カテゴリ別の★ */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {RATING_CATEGORIES.map(({ category, label, icon }) => {
+                  const key = `${category}:${userId}`
+                  const val = localRatings[key] || 0
+                  return (
+                    <div key={category} className="flex flex-col">
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className="text-xs">{icon}</span>
+                        <span className="text-[11px] text-text-sub">{label}</span>
+                        {savingKey === key && (
+                          <svg className="w-3 h-3 text-success ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className={savingKey === key ? 'animate-[check-bounce_0.3s_ease-out]' : ''}>
+                        <StarRating
+                          value={val}
+                          onChange={isOwn ? (v) => handleRate(category, v) : undefined}
+                          size="md"
+                          readonly={!isOwn}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
 }
 
-// 外部から評価カテゴリ定義にアクセスできるようexport
 export { RATING_CATEGORIES }

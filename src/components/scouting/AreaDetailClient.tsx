@@ -229,7 +229,7 @@ export default function AreaDetailClient({ area }: Props) {
       )}
 
       {/* ヘッダー */}
-      <div className="px-4 pt-6 max-w-2xl mx-auto">
+      <div className="px-4 pt-6 max-w-5xl mx-auto">
         <Link
           href="/scouting"
           className="inline-flex items-center gap-1.5 text-sm text-text-sub hover:text-primary transition-colors mb-4"
@@ -375,7 +375,7 @@ export default function AreaDetailClient({ area }: Props) {
         </div>
       </div>
 
-      <div className="px-4 max-w-2xl mx-auto mt-6 space-y-6">
+      <div className="px-4 max-w-5xl mx-auto mt-6 space-y-6">
 
         {/* ===== セクション1: 写真ギャラリー ===== */}
         <section

@@ -178,15 +178,17 @@ export default async function DashboardPage() {
 
       {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}
       <main className="max-w-5xl mx-auto px-6 py-4 space-y-6">
-        {/* 上段: カウントダウン + 貯金プログレス + 活動フィード */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 上段: カウントダウン + 貯金プログレス + 活動フィード（高さ揃え） */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {/* カウントダウン */}
-          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
-            <CountdownBanner moveInDate={moveInDate} />
+          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
+            <div className="w-full flex flex-col">
+              <CountdownBanner moveInDate={moveInDate} />
+            </div>
           </div>
 
           {/* 貯金プログレス */}
-          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
+          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
             <SavingsRing
               totalSavings={totalSavings}
               shingoSavings={shingoSavings}
@@ -196,7 +198,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* 活動フィード */}
-          <div style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
+          <div className="min-h-[280px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '200ms' }}>
             <ActivityFeed activities={recentActivities} />
           </div>
         </div>

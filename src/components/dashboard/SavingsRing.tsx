@@ -120,7 +120,7 @@ export default function SavingsRing({
   const airiPercent = goal > 0 ? (airiSavings / goal) * 100 : 0
 
   return (
-    <div className="flex flex-col items-center gap-6 rounded-2xl bg-bg-card p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+    <div className="flex flex-col items-center gap-6 rounded-2xl bg-bg-card p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 w-full flex-1">
       {/* プログレスリング - SVGストロークアニメーション */}
       <div className="relative w-48 h-48">
         <svg

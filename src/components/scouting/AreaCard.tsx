@@ -53,16 +53,123 @@ function StarDisplay({ rating }: { rating: number }) {
   )
 }
 
+// 写真URLを生成するヘルパー
+function getPhotoUrl(storagePath: string): string {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scouting-photos/${storagePath}`
+}
+
+// アニメーションディレイのクラス名
+const zoomDelayClasses = [
+  'animate-slow-zoom-d0',
+  'animate-slow-zoom-d1',
+  'animate-slow-zoom-d2',
+  'animate-slow-zoom-d3',
+]
+
+// サムネイルグリッドコンポーネント
+// 写真枚数に応じてレイアウトを切り替え
+function ThumbnailGrid({ photos, areaName }: { photos: ScoutingArea['scouting_photos']; areaName: string }) {
+  const photoList = photos || []
+  const count = photoList.length
+
+  // 写真0枚: プレースホルダ
+  if (count === 0) {
+    return (
+      <div className="flex items-center justify-center h-full bg-primary-light/20">
+        <svg className="w-12 h-12 text-text-sub/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
+      </div>
+    )
+  }
+
+  // 写真1枚: 全面表示
+  if (count === 1) {
+    return (
+      <div className="relative w-full h-full overflow-hidden">
+        <Image
+          src={getPhotoUrl(photoList[0].storage_path)}
+          alt={areaName}
+          fill
+          className={`object-cover ${zoomDelayClasses[0]} group-hover:scale-[1.08] transition-transform duration-700`}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+      </div>
+    )
+  }
+
+  // 写真2枚: 2列
+  if (count === 2) {
+    return (
+      <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+        {photoList.slice(0, 2).map((photo, i) => (
+          <div key={photo.id} className="relative overflow-hidden">
+            <Image
+              src={getPhotoUrl(photo.storage_path)}
+              alt={`${areaName} ${i + 1}`}
+              fill
+              className={`object-cover ${zoomDelayClasses[i]} group-hover:scale-[1.08] transition-transform duration-700`}
+              sizes="(max-width: 640px) 50vw, 25vw"
+            />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // 写真3枚: 左に1枚大きく、右に2枚縦並び
+  if (count === 3) {
+    return (
+      <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+        <div className="relative overflow-hidden row-span-2">
+          <Image
+            src={getPhotoUrl(photoList[0].storage_path)}
+            alt={`${areaName} 1`}
+            fill
+            className={`object-cover ${zoomDelayClasses[0]} group-hover:scale-[1.08] transition-transform duration-700`}
+            sizes="(max-width: 640px) 50vw, 25vw"
+          />
+        </div>
+        <div className="grid grid-rows-2 gap-0.5">
+          {photoList.slice(1, 3).map((photo, i) => (
+            <div key={photo.id} className="relative overflow-hidden">
+              <Image
+                src={getPhotoUrl(photo.storage_path)}
+                alt={`${areaName} ${i + 2}`}
+                fill
+                className={`object-cover ${zoomDelayClasses[i + 1]} group-hover:scale-[1.08] transition-transform duration-700`}
+                sizes="(max-width: 640px) 50vw, 25vw"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // 写真4枚以上: 2x2グリッド
+  return (
+    <div className="grid grid-cols-2 grid-rows-2 gap-0.5 w-full h-full">
+      {photoList.slice(0, 4).map((photo, i) => (
+        <div key={photo.id} className="relative overflow-hidden">
+          <Image
+            src={getPhotoUrl(photo.storage_path)}
+            alt={`${areaName} ${i + 1}`}
+            fill
+            className={`object-cover ${zoomDelayClasses[i]} group-hover:scale-[1.08] transition-transform duration-700`}
+            sizes="(max-width: 640px) 50vw, 25vw"
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function AreaCard({ area, compareMode, isSelected, onToggleSelect }: Props) {
   const photos = area.scouting_photos || []
   const comments = area.scouting_comments || []
   const avgRating = getAverageRating(area)
-
-  // カバー写真のURL取得（1枚目、なければnull）
-  const coverPhoto = photos.length > 0 ? photos[0] : null
-  const coverUrl = coverPhoto
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scouting-photos/${coverPhoto.storage_path}`
-    : null
 
   // 訪問日フォーマット
   const visitedLabel = area.visited_date
@@ -83,7 +190,7 @@ export default function AreaCard({ area, compareMode, isSelected, onToggleSelect
 
   const cardContent = (
     <div
-      className={`bg-bg-card rounded-2xl shadow-sm border overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer relative ${
+      className={`group bg-bg-card rounded-2xl shadow-sm border overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer relative ${
         isSelected
           ? 'border-primary ring-2 ring-primary/30'
           : 'border-primary-light/30'
@@ -118,39 +225,24 @@ export default function AreaCard({ area, compareMode, isSelected, onToggleSelect
         </div>
       )}
 
-      {/* カバー写真 */}
-      <div className="relative w-full h-40 bg-primary-light/20">
-        {coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt={area.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <svg className="w-12 h-12 text-text-sub/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-          </div>
-        )}
+      {/* サムネイル: 写真枚数に応じた分割グリッド */}
+      <div className="relative w-full h-48 bg-primary-light/10">
+        <ThumbnailGrid photos={photos} areaName={area.name} />
         {/* 写真枚数バッジ */}
         {photos.length > 0 && (
-          <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+          <div className="absolute bottom-2 right-2 z-10 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
             {photos.length}枚
           </div>
         )}
       </div>
 
-      {/* カード内容 */}
-      <div className="p-4">
+      {/* カード内容（コンパクト） */}
+      <div className="px-3.5 py-3">
         {/* エリア名 */}
-        <h3 className="text-base font-bold text-text truncate">{area.name}</h3>
+        <h3 className="text-sm font-bold text-text truncate">{area.name}</h3>
 
         {/* 最寄り駅・訪問日 */}
-        <div className="flex items-center gap-2 mt-1.5 text-xs text-text-sub">
+        <div className="flex items-center gap-2 mt-1 text-xs text-text-sub">
           {area.nearest_station && (
             <span className="flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -163,15 +255,14 @@ export default function AreaCard({ area, compareMode, isSelected, onToggleSelect
         </div>
 
         {/* 評価 */}
-        <div className="mt-2.5">
+        <div className="mt-1.5">
           <StarDisplay rating={avgRating} />
         </div>
 
-        {/* コメント抜粋（最大2件） */}
+        {/* コメント抜粋（最大1件、コンパクトに） */}
         {comments.length > 0 && (
-          <div className="mt-3 space-y-1.5">
-            {comments.slice(0, 2).map((c) => {
-              // profiles情報はJOINされている（display_name, avatar_emoji）
+          <div className="mt-2">
+            {comments.slice(0, 1).map((c) => {
               const cProfile = (c as Record<string, unknown>).profiles as { display_name: string; avatar_emoji: string } | null
               return (
                 <div key={c.id} className="flex items-start gap-1.5">
