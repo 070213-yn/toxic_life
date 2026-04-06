@@ -53,20 +53,29 @@ export default function CountdownBanner({ moveInDate }: Props) {
   const [showA, setShowA] = useState(true)
 
   useEffect(() => {
-    setPhotoA(getRandomPhoto())
-    setPhotoB(getRandomPhoto())
+    const first = getRandomPhoto()
+    let second = getRandomPhoto()
+    while (second === first && COUNTDOWN_PHOTOS.length > 1) second = getRandomPhoto()
+    setPhotoA(first)
+    setPhotoB(second)
 
     const interval = setInterval(() => {
-      setShowA((prev) => {
-        if (prev) {
-          // 次はBを表示 → Aを裏で差し替え
-          setPhotoB(getRandomPhoto())
-        } else {
-          // 次はAを表示 → Bを裏で差し替え
-          setPhotoA(getRandomPhoto())
-        }
-        return !prev
-      })
+      // まずフェード切り替え
+      setShowA((prev) => !prev)
+
+      // フェード完了後（1.2秒後）に裏の画像を差し替え
+      setTimeout(() => {
+        setShowA((current) => {
+          if (current) {
+            // Aが表示中 → Bを裏で差し替え
+            setPhotoB(getRandomPhoto())
+          } else {
+            // Bが表示中 → Aを裏で差し替え
+            setPhotoA(getRandomPhoto())
+          }
+          return current
+        })
+      }, 1200)
     }, 10000)
     return () => clearInterval(interval)
   }, [])
