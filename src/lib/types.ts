@@ -174,6 +174,23 @@ export type GuideItem = {
   profiles?: Profile
 }
 
+// 料理の記録
+export type CookingRecord = {
+  id: string
+  user_id: string
+  title: string
+  photo_path: string | null
+  ingredients: string | null
+  recipe: string | null
+  tips: string | null
+  rating: number | null
+  comment: string | null
+  cooked_date: string
+  created_at: string
+  updated_at: string
+  profiles?: { display_name: string; avatar_emoji: string }
+}
+
 // アプリ設定
 export type Setting = {
   id: string
