@@ -1,8 +1,169 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { BudgetTier, AreaRecommendation } from '@/lib/area-data'
+import { supabase } from '@/lib/supabase/client'
+
+// --- デフォルトテキスト（DB未保存時に使用） ---
+const DEFAULT_LIVING_COST = `家賃: 7〜9万円（エリアによる）
+光熱費: 1.5〜2.5万円（ゲーミングPC2台で電気代高め）
+通信費: 1〜1.5万円（光回線＋格安SIM）
+食費: 3〜5万円（自炊メインなら3万円台）
+日用品: 0.5〜1万円
+交通費: 0.5〜1万円
+サブスク: 0.3〜0.5万円
+予備・娯楽: 1〜2万円
+合計: 約15〜22万円`
+
+const DEFAULT_SALE_CALENDAR = `2027年3月 新生活セール → ベッド・マットレス・照明
+2027年5〜6月 GWセール → 残りの小物・引越し直前の買い足し
+2027年7月 プライムデー 🔥 → 冷蔵庫・洗濯機・TV・掃除機（同棲開始後でもOK）
+2027年10月 プライム感謝祭 🔥 → プロジェクター・ルーター
+2027年11月 ブラックフライデー 🔥 → ゲーミングチェア・モニター関連`
+
+const DEFAULT_TIMELINE = `2026年4〜5月: バイト開始・貯金スタート
+2026年7月: 貯金30万目標
+2026年8〜9月: 下見デート開始
+2026年10月: 貯金50万・親への相談
+2026年11月: 親への挨拶
+2026年12月: 貯金60万・エリア絞り込み
+2027年1〜3月: 物件探し本格化・内見・新生活セール
+2027年4〜5月: 物件契約
+2027年6月: 引越し準備・手続き
+2027年7月: 引越し！新生活スタート → プライムデーで大物家電
+2027年10月: フリーレン3期開始
+2027年11月: ブラックフライデーで残りの家電`
+
+// settingsキー名とデフォルト値のマッピング
+const REF_DEFAULTS: Record<string, string> = {
+  ref_living_cost: DEFAULT_LIVING_COST,
+  ref_sale_calendar: DEFAULT_SALE_CALENDAR,
+  ref_timeline: DEFAULT_TIMELINE,
+}
+
+// --- 編集可能な参考情報セクション ---
+function EditableRefSection({
+  settingsKey,
+  content,
+  onSaved,
+}: {
+  settingsKey: string
+  content: string
+  onSaved: (key: string, newContent: string) => void
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState(content)
+  const [saving, setSaving] = useState(false)
+  const [showCheck, setShowCheck] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // テキストエリアの高さを内容に合わせて自動調整
+  const adjustHeight = useCallback(() => {
+    const ta = textareaRef.current
+    if (ta) {
+      ta.style.height = 'auto'
+      ta.style.height = ta.scrollHeight + 'px'
+    }
+  }, [])
+
+  // 編集モードに切り替え
+  const startEdit = useCallback(() => {
+    setDraft(content)
+    setIsEditing(true)
+    // 次のレンダリング後にテキストエリアの高さを調整
+    setTimeout(() => adjustHeight(), 0)
+  }, [content, adjustHeight])
+
+  // キャンセル
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false)
+    setDraft(content)
+  }, [content])
+
+  // 保存
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    const { error } = await supabase
+      .from('settings')
+      .upsert(
+        { key: settingsKey, value: { content: draft } },
+        { onConflict: 'key' }
+      )
+    setSaving(false)
+
+    if (!error) {
+      onSaved(settingsKey, draft)
+      setIsEditing(false)
+      // 保存成功のチェックマーク表示
+      setShowCheck(true)
+      setTimeout(() => setShowCheck(false), 2000)
+    }
+  }, [settingsKey, draft, onSaved])
+
+  if (isEditing) {
+    return (
+      <div className="space-y-3">
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            adjustHeight()
+          }}
+          rows={8}
+          className="w-full rounded-xl border border-primary-light bg-white text-sm text-text p-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 leading-relaxed"
+          style={{ minHeight: '12rem' }}
+        />
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            onClick={cancelEdit}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-text-sub bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving ? '保存中...' : '保存'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative group">
+      {/* 編集ボタン（ホバーで表示） */}
+      <button
+        onClick={startEdit}
+        className="absolute top-0 right-0 p-1.5 rounded-lg text-text-sub/40 hover:text-text-sub hover:bg-primary-light/30 transition-all opacity-0 group-hover:opacity-100"
+        title="編集"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+      </button>
+
+      {/* 保存成功チェックマーク */}
+      {showCheck && (
+        <span className="absolute top-0 right-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-success/20 text-success text-xs font-medium">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          保存しました
+        </span>
+      )}
+
+      {/* プレーンテキスト表示 */}
+      <pre className="text-sm text-text whitespace-pre-wrap leading-relaxed font-sans pr-8">
+        {content}
+      </pre>
+    </div>
+  )
+}
 
 // 折りたたみセクションコンポーネント
 function CollapsibleSection({
@@ -238,6 +399,38 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
   const allAreas = tiers.flatMap((tier) =>
     tier.areas.map((area) => ({ ...area, tierColor: tier.color, tierLabel: tier.totalLabel }))
   )
+
+  // 参考情報のステート（settingsテーブルから読み込み or デフォルト値）
+  const [refTexts, setRefTexts] = useState<Record<string, string>>({ ...REF_DEFAULTS })
+
+  // マウント時にsettingsテーブルから3つのキーを取得
+  useEffect(() => {
+    const fetchRefData = async () => {
+      const keys = Object.keys(REF_DEFAULTS)
+      const { data } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', keys)
+
+      if (data && data.length > 0) {
+        const loaded: Record<string, string> = { ...REF_DEFAULTS }
+        for (const row of data) {
+          // DBのvalueは { content: "..." } 形式
+          const val = row.value as { content?: string }
+          if (val?.content) {
+            loaded[row.key] = val.content
+          }
+        }
+        setRefTexts(loaded)
+      }
+    }
+    fetchRefData()
+  }, [])
+
+  // 保存後にローカルステートを更新するコールバック
+  const handleRefSaved = useCallback((key: string, newContent: string) => {
+    setRefTexts((prev) => ({ ...prev, [key]: newContent }))
+  }, [])
 
   return (
     <div className="min-h-screen pb-24 md:pb-8">
@@ -488,64 +681,11 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
             bgClass="bg-emerald-50"
             borderClass="border-emerald-200"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-emerald-200">
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub">項目</th>
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub">金額目安</th>
-                    <th className="text-left py-2 font-medium text-text-sub">備考</th>
-                  </tr>
-                </thead>
-                <tbody className="text-text">
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">家賃</td>
-                    <td className="py-2 pr-3 font-medium">7〜9万円</td>
-                    <td className="py-2 text-text-sub text-xs">エリアによる</td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">光熱費（電気・ガス・水道）</td>
-                    <td className="py-2 pr-3 font-medium">1.5〜2.5万円</td>
-                    <td className="py-2 text-text-sub text-xs">ゲーミングPC2台で電気代高め</td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">通信費（ネット＋スマホ2台）</td>
-                    <td className="py-2 pr-3 font-medium">1〜1.5万円</td>
-                    <td className="py-2 text-text-sub text-xs">光回線＋格安SIM</td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">食費</td>
-                    <td className="py-2 pr-3 font-medium">3〜5万円</td>
-                    <td className="py-2 text-text-sub text-xs">自炊メインなら3万円台</td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">日用品</td>
-                    <td className="py-2 pr-3 font-medium">0.5〜1万円</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">交通費</td>
-                    <td className="py-2 pr-3 font-medium">0.5〜1万円</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">サブスク（動画・ゲーム等）</td>
-                    <td className="py-2 pr-3 font-medium">0.3〜0.5万円</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr className="border-b border-emerald-100">
-                    <td className="py-2 pr-3">予備・娯楽</td>
-                    <td className="py-2 pr-3 font-medium">1〜2万円</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr className="border-t-2 border-emerald-300 bg-emerald-50/50">
-                    <td className="py-2 pr-3 font-bold">合計</td>
-                    <td className="py-2 pr-3 font-bold text-success">約15〜22万円</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <EditableRefSection
+              settingsKey="ref_living_cost"
+              content={refTexts.ref_living_cost}
+              onSaved={handleRefSaved}
+            />
           </CollapsibleSection>
 
           {/* Amazonセールカレンダー */}
@@ -556,44 +696,11 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
             bgClass="bg-orange-50"
             borderClass="border-orange-200"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-orange-200">
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub">時期</th>
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub">セール名</th>
-                    <th className="text-left py-2 font-medium text-text-sub">狙うもの</th>
-                  </tr>
-                </thead>
-                <tbody className="text-text">
-                  <tr className="border-b border-orange-100 bg-orange-50/30">
-                    <td className="py-2 pr-3 font-medium">7月</td>
-                    <td className="py-2 pr-3">プライムデー 🔥</td>
-                    <td className="py-2 text-text-sub text-xs">冷蔵庫・洗濯機・TV・掃除機</td>
-                  </tr>
-                  <tr className="border-b border-orange-100">
-                    <td className="py-2 pr-3 font-medium">10月</td>
-                    <td className="py-2 pr-3">プライム感謝祭 🔥</td>
-                    <td className="py-2 text-text-sub text-xs">プロジェクター・ルーター・デスク</td>
-                  </tr>
-                  <tr className="border-b border-orange-100 bg-orange-50/30">
-                    <td className="py-2 pr-3 font-medium">11月</td>
-                    <td className="py-2 pr-3">ブラックフライデー 🔥</td>
-                    <td className="py-2 text-text-sub text-xs">ゲーミングチェア・モニター関連</td>
-                  </tr>
-                  <tr className="border-b border-orange-100">
-                    <td className="py-2 pr-3 font-medium">1月</td>
-                    <td className="py-2 pr-3">初売りセール</td>
-                    <td className="py-2 text-text-sub text-xs">家電の福袋・炊飯器</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-3 font-medium">3月</td>
-                    <td className="py-2 pr-3">新生活セール</td>
-                    <td className="py-2 text-text-sub text-xs">ベッド・マットレス・照明</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <EditableRefSection
+              settingsKey="ref_sale_calendar"
+              content={refTexts.ref_sale_calendar}
+              onSaved={handleRefSaved}
+            />
           </CollapsibleSection>
 
           {/* タイムライン全体像 */}
@@ -604,74 +711,11 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
             bgClass="bg-violet-50"
             borderClass="border-violet-200"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-violet-200">
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub whitespace-nowrap">時期</th>
-                    <th className="text-left py-2 pr-3 font-medium text-text-sub">やること</th>
-                    <th className="text-left py-2 font-medium text-text-sub">買い物</th>
-                  </tr>
-                </thead>
-                <tbody className="text-text">
-                  <tr className="border-b border-violet-100">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年4〜5月</td>
-                    <td className="py-2 pr-3">バイト開始・貯金スタート</td>
-                    <td className="py-2 text-text-sub text-xs">ほしいものリスト作成</td>
-                  </tr>
-                  <tr className="border-b border-violet-100 bg-violet-50/30">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年7月</td>
-                    <td className="py-2 pr-3">貯金30万目標</td>
-                    <td className="py-2 text-text-sub text-xs">プライムデーで大物家電</td>
-                  </tr>
-                  <tr className="border-b border-violet-100">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年8〜9月</td>
-                    <td className="py-2 pr-3">下見デート開始</td>
-                    <td className="py-2 text-text-sub text-xs">季節先取りセールで寝具</td>
-                  </tr>
-                  <tr className="border-b border-violet-100 bg-violet-50/30">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年10月</td>
-                    <td className="py-2 pr-3">貯金50万・親への相談</td>
-                    <td className="py-2 text-text-sub text-xs">プライム感謝祭でデスク</td>
-                  </tr>
-                  <tr className="border-b border-violet-100">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年11月</td>
-                    <td className="py-2 pr-3">親への挨拶</td>
-                    <td className="py-2 text-text-sub text-xs">ブラックフライデー</td>
-                  </tr>
-                  <tr className="border-b border-violet-100 bg-violet-50/30">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年12月</td>
-                    <td className="py-2 pr-3">貯金60万・エリア絞り込み</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr className="border-b border-violet-100">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年1〜3月</td>
-                    <td className="py-2 pr-3">物件探し本格化・内見</td>
-                    <td className="py-2 text-text-sub text-xs">新生活セールでベッド</td>
-                  </tr>
-                  <tr className="border-b border-violet-100 bg-violet-50/30">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年4〜5月</td>
-                    <td className="py-2 pr-3">物件契約</td>
-                    <td className="py-2 text-text-sub text-xs">足りないものの買い足し</td>
-                  </tr>
-                  <tr className="border-b border-violet-100">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年6月</td>
-                    <td className="py-2 pr-3">引越し準備・手続き</td>
-                    <td className="py-2 text-text-sub text-xs">最終買い足し</td>
-                  </tr>
-                  <tr className="border-b border-violet-100 bg-violet-50/30">
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年7月</td>
-                    <td className="py-2 pr-3 font-bold text-primary">引越し！新生活スタート</td>
-                    <td className="py-2 text-text-sub text-xs"></td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年10月</td>
-                    <td className="py-2 pr-3">フリーレン3期開始</td>
-                    <td className="py-2 text-text-sub text-xs">ポップコーンだけ</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <EditableRefSection
+              settingsKey="ref_timeline"
+              content={refTexts.ref_timeline}
+              onSaved={handleRefSaved}
+            />
           </CollapsibleSection>
         </div>
       </div>
