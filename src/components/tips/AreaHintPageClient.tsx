@@ -1,8 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import type { BudgetTier, AreaRecommendation } from '@/lib/area-data'
+
+// 折りたたみセクションコンポーネント
+function CollapsibleSection({
+  icon,
+  title,
+  colorClass,
+  bgClass,
+  borderClass,
+  children,
+}: {
+  icon: string
+  title: string
+  colorClass: string
+  bgClass: string
+  borderClass: string
+  children: React.ReactNode
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), [])
+
+  return (
+    <div className={`rounded-2xl shadow-sm border ${borderClass} overflow-hidden`}>
+      <button
+        onClick={toggle}
+        className={`w-full flex items-center gap-3 px-5 py-4 ${bgClass} transition-colors hover:brightness-95 text-left`}
+      >
+        <span className="text-xl">{icon}</span>
+        <span className={`font-bold text-text flex-1`}>{title}</span>
+        <svg
+          className={`w-5 h-5 text-text-sub transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${
+          isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="px-5 py-4 bg-bg-card">{children}</div>
+      </div>
+    </div>
+  )
+}
 
 // 星評価コンポーネント
 function Stars({ count, max = 5 }: { count: number; max?: number }) {
@@ -421,6 +470,210 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
             </table>
           </div>
         </section>
+
+        {/* ===== 参考情報セクション ===== */}
+        <div className="space-y-3">
+          <h2 className="flex items-center gap-2 font-bold text-text text-lg">
+            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            参考情報
+          </h2>
+
+          {/* 生活費シミュレーション */}
+          <CollapsibleSection
+            icon="💰"
+            title="月々の生活費シミュレーション"
+            colorClass="text-success"
+            bgClass="bg-emerald-50"
+            borderClass="border-emerald-200"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-emerald-200">
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub">項目</th>
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub">金額目安</th>
+                    <th className="text-left py-2 font-medium text-text-sub">備考</th>
+                  </tr>
+                </thead>
+                <tbody className="text-text">
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">家賃</td>
+                    <td className="py-2 pr-3 font-medium">7〜9万円</td>
+                    <td className="py-2 text-text-sub text-xs">エリアによる</td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">光熱費（電気・ガス・水道）</td>
+                    <td className="py-2 pr-3 font-medium">1.5〜2.5万円</td>
+                    <td className="py-2 text-text-sub text-xs">ゲーミングPC2台で電気代高め</td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">通信費（ネット＋スマホ2台）</td>
+                    <td className="py-2 pr-3 font-medium">1〜1.5万円</td>
+                    <td className="py-2 text-text-sub text-xs">光回線＋格安SIM</td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">食費</td>
+                    <td className="py-2 pr-3 font-medium">3〜5万円</td>
+                    <td className="py-2 text-text-sub text-xs">自炊メインなら3万円台</td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">日用品</td>
+                    <td className="py-2 pr-3 font-medium">0.5〜1万円</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">交通費</td>
+                    <td className="py-2 pr-3 font-medium">0.5〜1万円</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">サブスク（動画・ゲーム等）</td>
+                    <td className="py-2 pr-3 font-medium">0.3〜0.5万円</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr className="border-b border-emerald-100">
+                    <td className="py-2 pr-3">予備・娯楽</td>
+                    <td className="py-2 pr-3 font-medium">1〜2万円</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr className="border-t-2 border-emerald-300 bg-emerald-50/50">
+                    <td className="py-2 pr-3 font-bold">合計</td>
+                    <td className="py-2 pr-3 font-bold text-success">約15〜22万円</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleSection>
+
+          {/* Amazonセールカレンダー */}
+          <CollapsibleSection
+            icon="🛒"
+            title="Amazonセール活用カレンダー"
+            colorClass="text-primary"
+            bgClass="bg-orange-50"
+            borderClass="border-orange-200"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-orange-200">
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub">時期</th>
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub">セール名</th>
+                    <th className="text-left py-2 font-medium text-text-sub">狙うもの</th>
+                  </tr>
+                </thead>
+                <tbody className="text-text">
+                  <tr className="border-b border-orange-100 bg-orange-50/30">
+                    <td className="py-2 pr-3 font-medium">7月</td>
+                    <td className="py-2 pr-3">プライムデー 🔥</td>
+                    <td className="py-2 text-text-sub text-xs">冷蔵庫・洗濯機・TV・掃除機</td>
+                  </tr>
+                  <tr className="border-b border-orange-100">
+                    <td className="py-2 pr-3 font-medium">10月</td>
+                    <td className="py-2 pr-3">プライム感謝祭 🔥</td>
+                    <td className="py-2 text-text-sub text-xs">プロジェクター・ルーター・デスク</td>
+                  </tr>
+                  <tr className="border-b border-orange-100 bg-orange-50/30">
+                    <td className="py-2 pr-3 font-medium">11月</td>
+                    <td className="py-2 pr-3">ブラックフライデー 🔥</td>
+                    <td className="py-2 text-text-sub text-xs">ゲーミングチェア・モニター関連</td>
+                  </tr>
+                  <tr className="border-b border-orange-100">
+                    <td className="py-2 pr-3 font-medium">1月</td>
+                    <td className="py-2 pr-3">初売りセール</td>
+                    <td className="py-2 text-text-sub text-xs">家電の福袋・炊飯器</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-3 font-medium">3月</td>
+                    <td className="py-2 pr-3">新生活セール</td>
+                    <td className="py-2 text-text-sub text-xs">ベッド・マットレス・照明</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleSection>
+
+          {/* タイムライン全体像 */}
+          <CollapsibleSection
+            icon="📅"
+            title="同棲までのタイムライン"
+            colorClass="text-primary"
+            bgClass="bg-violet-50"
+            borderClass="border-violet-200"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-violet-200">
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub whitespace-nowrap">時期</th>
+                    <th className="text-left py-2 pr-3 font-medium text-text-sub">やること</th>
+                    <th className="text-left py-2 font-medium text-text-sub">買い物</th>
+                  </tr>
+                </thead>
+                <tbody className="text-text">
+                  <tr className="border-b border-violet-100">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年4〜5月</td>
+                    <td className="py-2 pr-3">バイト開始・貯金スタート</td>
+                    <td className="py-2 text-text-sub text-xs">ほしいものリスト作成</td>
+                  </tr>
+                  <tr className="border-b border-violet-100 bg-violet-50/30">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年7月</td>
+                    <td className="py-2 pr-3">貯金30万目標</td>
+                    <td className="py-2 text-text-sub text-xs">プライムデーで大物家電</td>
+                  </tr>
+                  <tr className="border-b border-violet-100">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年8〜9月</td>
+                    <td className="py-2 pr-3">下見デート開始</td>
+                    <td className="py-2 text-text-sub text-xs">季節先取りセールで寝具</td>
+                  </tr>
+                  <tr className="border-b border-violet-100 bg-violet-50/30">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年10月</td>
+                    <td className="py-2 pr-3">貯金50万・親への相談</td>
+                    <td className="py-2 text-text-sub text-xs">プライム感謝祭でデスク</td>
+                  </tr>
+                  <tr className="border-b border-violet-100">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年11月</td>
+                    <td className="py-2 pr-3">親への挨拶</td>
+                    <td className="py-2 text-text-sub text-xs">ブラックフライデー</td>
+                  </tr>
+                  <tr className="border-b border-violet-100 bg-violet-50/30">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2026年12月</td>
+                    <td className="py-2 pr-3">貯金60万・エリア絞り込み</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr className="border-b border-violet-100">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年1〜3月</td>
+                    <td className="py-2 pr-3">物件探し本格化・内見</td>
+                    <td className="py-2 text-text-sub text-xs">新生活セールでベッド</td>
+                  </tr>
+                  <tr className="border-b border-violet-100 bg-violet-50/30">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年4〜5月</td>
+                    <td className="py-2 pr-3">物件契約</td>
+                    <td className="py-2 text-text-sub text-xs">足りないものの買い足し</td>
+                  </tr>
+                  <tr className="border-b border-violet-100">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年6月</td>
+                    <td className="py-2 pr-3">引越し準備・手続き</td>
+                    <td className="py-2 text-text-sub text-xs">最終買い足し</td>
+                  </tr>
+                  <tr className="border-b border-violet-100 bg-violet-50/30">
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年7月</td>
+                    <td className="py-2 pr-3 font-bold text-primary">引越し！新生活スタート</td>
+                    <td className="py-2 text-text-sub text-xs"></td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-3 font-medium whitespace-nowrap">2027年10月</td>
+                    <td className="py-2 pr-3">フリーレン3期開始</td>
+                    <td className="py-2 text-text-sub text-xs">ポップコーンだけ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleSection>
+        </div>
       </div>
     </div>
   )
