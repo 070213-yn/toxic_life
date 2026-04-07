@@ -102,8 +102,8 @@ export default function CookingPageClient({ records }: Props) {
   // フォーム状態
   const [title, setTitle] = useState('')
   const [cookedDate, setCookedDate] = useState(todayStr())
-  const [ingredients, setIngredients] = useState('')
-  const [recipe, setRecipe] = useState('')
+  const [ingredients, setIngredients] = useState<string[]>([''])
+  const [recipe, setRecipe] = useState<string[]>([''])
   const [tips, setTips] = useState('')
   const [rating, setRating] = useState<number | null>(null)
   const [comment, setComment] = useState('')
@@ -117,8 +117,8 @@ export default function CookingPageClient({ records }: Props) {
   const resetForm = useCallback(() => {
     setTitle('')
     setCookedDate(todayStr())
-    setIngredients('')
-    setRecipe('')
+    setIngredients([''])
+    setRecipe([''])
     setTips('')
     setRating(null)
     setComment('')
@@ -138,8 +138,8 @@ export default function CookingPageClient({ records }: Props) {
     setEditingRecord(record)
     setTitle(record.title)
     setCookedDate(record.cooked_date)
-    setIngredients(record.ingredients || '')
-    setRecipe(record.recipe || '')
+    try { setIngredients(record.ingredients ? JSON.parse(record.ingredients) : ['']) } catch { setIngredients(record.ingredients ? [record.ingredients] : ['']) }
+    try { setRecipe(record.recipe ? JSON.parse(record.recipe) : ['']) } catch { setRecipe(record.recipe ? [record.recipe] : ['']) }
     setTips(record.tips || '')
     setRating(record.rating)
     setComment(record.comment || '')
@@ -171,8 +171,8 @@ export default function CookingPageClient({ records }: Props) {
         const updateData: Record<string, unknown> = {
           title: title.trim(),
           cooked_date: cookedDate,
-          ingredients: ingredients.trim() || null,
-          recipe: recipe.trim() || null,
+          ingredients: ingredients.filter(s => s.trim()).length > 0 ? JSON.stringify(ingredients.filter(s => s.trim())) : null,
+          recipe: recipe.filter(s => s.trim()).length > 0 ? JSON.stringify(recipe.filter(s => s.trim())) : null,
           tips: tips.trim() || null,
           rating: rating,
           comment: comment.trim() || null,
@@ -202,8 +202,8 @@ export default function CookingPageClient({ records }: Props) {
             user_id: user.id,
             title: title.trim(),
             cooked_date: cookedDate,
-            ingredients: ingredients.trim() || null,
-            recipe: recipe.trim() || null,
+            ingredients: ingredients.filter(s => s.trim()).length > 0 ? JSON.stringify(ingredients.filter(s => s.trim())) : null,
+            recipe: recipe.filter(s => s.trim()).length > 0 ? JSON.stringify(recipe.filter(s => s.trim())) : null,
             tips: tips.trim() || null,
             rating: rating,
             comment: comment.trim() || null,
@@ -399,30 +399,45 @@ export default function CookingPageClient({ records }: Props) {
               )}
 
               {/* 材料 */}
-              {selectedRecord.ingredients && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm">📝</span>
-                    <span className="text-xs font-medium text-text-sub">材料</span>
+              {selectedRecord.ingredients && (() => {
+                let items: string[]
+                try { items = JSON.parse(selectedRecord.ingredients) } catch { items = [selectedRecord.ingredients] }
+                return items.filter(s => s.trim()).length > 0 ? (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">📝</span>
+                      <span className="text-xs font-medium text-text-sub">材料</span>
+                    </div>
+                    <ul className="text-sm text-text bg-primary-light/10 rounded-xl p-3 space-y-0.5">
+                      {items.filter(s => s.trim()).map((item, i) => (
+                        <li key={i}>・{item}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="text-sm text-text whitespace-pre-wrap bg-primary-light/10 rounded-xl p-3">
-                    {selectedRecord.ingredients}
-                  </p>
-                </div>
-              )}
+                ) : null
+              })()}
 
               {/* 作り方 */}
-              {selectedRecord.recipe && (
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm">👨‍🍳</span>
-                    <span className="text-xs font-medium text-text-sub">作り方</span>
+              {selectedRecord.recipe && (() => {
+                let steps: string[]
+                try { steps = JSON.parse(selectedRecord.recipe) } catch { steps = [selectedRecord.recipe] }
+                return steps.filter(s => s.trim()).length > 0 ? (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">👨‍🍳</span>
+                      <span className="text-xs font-medium text-text-sub">作り方</span>
+                    </div>
+                    <ol className="text-sm text-text bg-primary-light/10 rounded-xl p-3 space-y-1">
+                      {steps.filter(s => s.trim()).map((step, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="font-medium text-primary shrink-0">{i + 1}.</span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
-                  <p className="text-sm text-text whitespace-pre-wrap bg-primary-light/10 rounded-xl p-3">
-                    {selectedRecord.recipe}
-                  </p>
-                </div>
-              )}
+                ) : null
+              })()}
 
               {/* コツ */}
               {selectedRecord.tips && (
@@ -569,28 +584,68 @@ export default function CookingPageClient({ records }: Props) {
                 />
               </div>
 
-              {/* 使った材料 */}
+              {/* 使った材料（項目追加式） */}
               <div>
                 <label className="text-xs font-medium text-text-sub mb-1.5 block">📝 使った材料</label>
-                <textarea
-                  value={ingredients}
-                  onChange={(e) => setIngredients(e.target.value)}
-                  placeholder="例: 鶏もも肉 300g、玉ねぎ 1個、卵 2個..."
-                  rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary-light/40 bg-white/80 text-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-text-sub/30 resize-none"
-                />
+                <div className="space-y-1.5">
+                  {ingredients.map((item, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="text-xs text-text-sub/40 w-4 shrink-0 text-right">・</span>
+                      <input
+                        type="text"
+                        value={item}
+                        onChange={(e) => {
+                          const next = [...ingredients]
+                          next[i] = e.target.value
+                          setIngredients(next)
+                        }}
+                        placeholder={i === 0 ? '例: 鶏もも肉 300g' : '材料を追加...'}
+                        className="flex-1 px-3 py-2 rounded-lg border border-primary-light/40 bg-white/80 text-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/30"
+                      />
+                      {ingredients.length > 1 && (
+                        <button onClick={() => setIngredients(ingredients.filter((_, j) => j !== i))} className="text-text-sub/30 hover:text-accent text-xs p-1">✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setIngredients([...ingredients, ''])}
+                  className="mt-1.5 text-xs text-primary/60 hover:text-primary transition-colors"
+                >
+                  + 材料を追加
+                </button>
               </div>
 
-              {/* 作り方・手順 */}
+              {/* 作り方・手順（番号付き項目追加式） */}
               <div>
                 <label className="text-xs font-medium text-text-sub mb-1.5 block">👨‍🍳 作り方・手順</label>
-                <textarea
-                  value={recipe}
-                  onChange={(e) => setRecipe(e.target.value)}
-                  placeholder="例: 1. 鶏肉を一口大に切る&#10;2. 小麦粉をまぶして揚げる..."
-                  rows={4}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary-light/40 bg-white/80 text-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-text-sub/30 resize-none"
-                />
+                <div className="space-y-1.5">
+                  {recipe.map((step, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-primary/60 w-5 shrink-0 text-right">{i + 1}.</span>
+                      <input
+                        type="text"
+                        value={step}
+                        onChange={(e) => {
+                          const next = [...recipe]
+                          next[i] = e.target.value
+                          setRecipe(next)
+                        }}
+                        placeholder={i === 0 ? '例: 鶏肉を一口大に切る' : '次の手順...'}
+                        className="flex-1 px-3 py-2 rounded-lg border border-primary-light/40 bg-white/80 text-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/30"
+                      />
+                      {recipe.length > 1 && (
+                        <button onClick={() => setRecipe(recipe.filter((_, j) => j !== i))} className="text-text-sub/30 hover:text-accent text-xs p-1">✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setRecipe([...recipe, ''])}
+                  className="mt-1.5 text-xs text-primary/60 hover:text-primary transition-colors"
+                >
+                  + 手順を追加
+                </button>
               </div>
 
               {/* コツ・ポイント */}
@@ -617,7 +672,7 @@ export default function CookingPageClient({ records }: Props) {
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="例: あいりが美味しいって言ってくれた！"
+                  placeholder="例: 一緒に住んだらあいりちゃんに絶対作ってあげたい"
                   rows={2}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-primary-light/40 bg-white/80 text-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-text-sub/30 resize-none"
                 />
