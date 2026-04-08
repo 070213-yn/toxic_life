@@ -219,15 +219,13 @@ export function TaskList({
       const [moved] = reordered.splice(oldIndex, 1)
       reordered.splice(newIndex, 0, moved)
 
-      // sort_orderを更新してDB保存
-      const updates = reordered.map((t, i) => ({
-        id: t.id,
-        sort_order: i,
-      }))
+      // 全タスクのsort_orderを一括でローカル更新
+      const updatedTasks = reordered.map((t, i) => ({ ...t, sort_order: i }))
+      updatedTasks.forEach((t) => onTaskUpdate(t))
 
-      for (const u of updates) {
-        onTaskUpdate({ ...groupTasks.find((t) => t.id === u.id)!, sort_order: u.sort_order })
-        supabase.from('tasks').update({ sort_order: u.sort_order }).eq('id', u.id)
+      // DB保存（await付き）
+      for (const t of updatedTasks) {
+        await supabase.from('tasks').update({ sort_order: t.sort_order }).eq('id', t.id)
       }
     },
     [onTaskUpdate]
