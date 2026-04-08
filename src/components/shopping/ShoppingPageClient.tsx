@@ -32,6 +32,18 @@ const STATUS_FILTERS = [
   { key: 'purchased', label: '購入済み' },
 ]
 
+// 購入時期フィルター
+const TIMING_FILTERS = [
+  { key: 'all', label: '全て' },
+  { key: 'セールで早めに', label: 'セールで早めに' },
+  { key: 'プライムデー（7月）', label: 'プライムデー' },
+  { key: 'ブラックフライデー（11月）', label: 'ブラックフライデー' },
+  { key: '新生活セール（3月）', label: '新生活セール' },
+  { key: '同棲直前（6月）', label: '同棲直前' },
+  { key: '同棲開始後', label: '同棲開始後' },
+  { key: 'unset', label: '未設定' },
+]
+
 // 金額フォーマット
 function formatPrice(price: number): string {
   return '¥' + price.toLocaleString('ja-JP')
@@ -83,6 +95,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
   // フィルター状態
   const [statusFilter, setStatusFilter] = useState('all')
   const [mustOnly, setMustOnly] = useState(false)
+  const [timingFilter, setTimingFilter] = useState('all')
 
   // アコーディオン開閉状態（カテゴリID → 開閉）
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(() => {
@@ -156,10 +169,18 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       shopping_items: cat.shopping_items?.filter((item) => {
         if (statusFilter !== 'all' && item.status !== statusFilter) return false
         if (mustOnly && item.priority !== 'must') return false
+        // 購入時期フィルター
+        if (timingFilter !== 'all') {
+          if (timingFilter === 'unset') {
+            if (item.planned_timing) return false
+          } else {
+            if (item.planned_timing !== timingFilter) return false
+          }
+        }
         return true
       }),
     })).filter((cat) => (cat.shopping_items?.length ?? 0) > 0)
-  }, [categories, statusFilter, mustOnly])
+  }, [categories, statusFilter, mustOnly, timingFilter])
 
   // アコーディオン切り替え
   const toggleCategory = useCallback((catId: string) => {
@@ -404,31 +425,53 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       </div>
 
       {/* フィルターチップ */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f) => (
+      <div className="mt-4 space-y-2">
+        {/* 1行目: ステータス + 必須のみ */}
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setStatusFilter(f.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                statusFilter === f.key
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-primary/40'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-primary-light/30 self-center mx-1" />
           <button
-            key={f.key}
-            onClick={() => setStatusFilter(f.key)}
+            onClick={() => setMustOnly(!mustOnly)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-              statusFilter === f.key
-                ? 'bg-primary text-white shadow-sm'
-                : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-primary/40'
+              mustOnly
+                ? 'bg-accent text-white shadow-sm'
+                : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-accent/40'
             }`}
           >
-            {f.label}
+            必須のみ
           </button>
-        ))}
-        <div className="w-px h-6 bg-primary-light/30 self-center mx-1" />
-        <button
-          onClick={() => setMustOnly(!mustOnly)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-            mustOnly
-              ? 'bg-accent text-white shadow-sm'
-              : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-accent/40'
-          }`}
-        >
-          必須のみ
-        </button>
+        </div>
+        {/* 2行目: 購入時期フィルター（横スクロール） */}
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-[11px] text-text-sub font-medium">購入時期:</span>
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+            {TIMING_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTimingFilter(f.key)}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-200 ${
+                  timingFilter === f.key
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-bg-card text-text-sub border border-primary-light/30 hover:border-primary/40'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* カテゴリ別アコーディオン */}
@@ -887,19 +930,18 @@ function ItemCard({
             </div>
           </div>
 
-          {/* メモ・タイミング */}
-          {(item.memo || item.planned_timing) && (
-            <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-              {item.planned_timing && (
-                <span className="text-[10px] text-text-sub">
-                  <svg className="inline w-3 h-3 mr-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  {item.planned_timing}
-                </span>
-              )}
-              {item.memo && <span className="text-[10px] text-text-sub/70">{item.memo}</span>}
-            </div>
+          {/* 購入時期バッジ（常に表示） */}
+          {item.planned_timing && (
+            <span className="inline-flex items-center gap-0.5 mt-0.5 bg-primary-light/20 text-text-sub text-[10px] rounded-full px-2 py-0.5">
+              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              {item.planned_timing}
+            </span>
+          )}
+          {/* メモ */}
+          {item.memo && (
+            <p className="mt-0.5 text-[10px] text-text-sub/70">{item.memo}</p>
           )}
         </div>
 
