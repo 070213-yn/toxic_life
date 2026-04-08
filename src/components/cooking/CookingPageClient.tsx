@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import { notifyDiscord } from '@/lib/discord'
 import type { CookingRecord } from '@/lib/types'
 
 // リアルタイム監視対象テーブル（コンポーネント外で定数定義）
@@ -225,6 +226,12 @@ export default function CookingPageClient({ records }: Props) {
             .eq('id', newRecord.id)
           if (updateError) throw updateError
         }
+      }
+
+      // 新規作成時のみDiscord通知（編集時は通知しない）
+      if (!editingRecord) {
+        const displayName = profile?.display_name || 'だれか'
+        notifyDiscord(`🍳 ${displayName}が「${title.trim()}」を記録しました！`)
       }
 
       setShowForm(false)

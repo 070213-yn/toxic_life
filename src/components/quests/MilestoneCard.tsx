@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { TaskList } from './TaskList'
 import { AddTaskModal } from './AddTaskModal'
 import { ConfettiEffect } from './ConfettiEffect'
+import { notifyDiscord } from '@/lib/discord'
 
 type Props = {
   milestone: Milestone
@@ -109,11 +110,15 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     setTasks((prev) => [...prev, newTask])
   }, [])
 
-  // マイルストーン達成時の紙吹雪
+  // マイルストーン達成時の紙吹雪 + Discord通知
   const handleMilestoneComplete = useCallback(() => {
     setShowConfetti(true)
     setTimeout(() => setShowConfetti(false), 3000)
-  }, [])
+
+    // Discord通知（fire and forget）
+    const subtitle = milestone.subtitle ? `${milestone.subtitle} ` : ''
+    notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！`)
+  }, [milestone.subtitle, milestone.title])
 
   // カードのスタイル（完了時は薄く）
   const cardStyle = isCompleted

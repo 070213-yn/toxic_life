@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Milestone, Profile } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
+import { notifyDiscord } from '@/lib/discord'
 import { MilestoneCard } from './MilestoneCard'
 
 // リアルタイム監視対象テーブル（クエストページ用）
@@ -193,6 +194,9 @@ function AddChapterSection({
       })
 
       if (error) throw error
+
+      // Discord通知（fire and forget）
+      notifyDiscord(`📋 新しいクエスト「${title.trim()}」が追加されました！`)
 
       closeForm()
       onAdded()

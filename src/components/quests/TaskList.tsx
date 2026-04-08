@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskReactions } from '@/components/quests/TaskReactions'
+import { notifyDiscord } from '@/lib/discord'
 import {
   DndContext,
   closestCenter,
@@ -173,6 +174,11 @@ export function TaskList({
           completed_at: updatedTask.completed_at,
         })
         .eq('id', task.id)
+
+      // タスク完了時にDiscord通知（fire and forget）
+      if (newCompleted) {
+        notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！`)
+      }
     },
     [onTaskUpdate]
   )

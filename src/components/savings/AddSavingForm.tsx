@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import { notifyDiscord } from '@/lib/discord'
 import confetti from 'canvas-confetti'
 
 // 貯金記録の追加フォーム
@@ -11,7 +12,7 @@ import confetti from 'canvas-confetti'
 // 保存成功時にconfetti演出と成功メッセージを表示
 export function AddSavingForm({ onClose }: { onClose: () => void }) {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   // 今日の日付をデフォルト値に
   const today = new Date().toISOString().split('T')[0]
@@ -71,6 +72,10 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
     // 保存成功 → confetti演出 & 成功メッセージ表示
     fireConfetti()
     setSuccessMessage('貯金を記録したよ！')
+
+    // Discord通知（fire and forget）
+    const displayName = profile?.display_name || 'だれか'
+    notifyDiscord(`💰 ${displayName}が ¥${numAmount.toLocaleString()} を貯金しました！`)
     setSaving(false)
 
     // フォームをリセット

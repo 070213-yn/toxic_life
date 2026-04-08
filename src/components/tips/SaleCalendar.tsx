@@ -151,26 +151,25 @@ export default function SaleCalendar() {
         </div>
       ))}
 
-      {/* 保存ボタン / チェックマーク */}
-      <div className="flex items-center justify-end gap-2 min-h-[36px] pt-2">
-        {showCheck && (
-          <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/20 text-success text-xs font-medium">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            保存しました
-          </span>
-        )}
-        {hasChanges && !showCheck && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? '保存中...' : '保存'}
+      {/* 保存完了メッセージ */}
+      {showCheck && (
+        <div className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-success/15 border border-success/30 text-success text-xs font-medium animate-[fadeIn_0.3s_ease-out]">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          保存しました
+        </div>
+      )}
+
+      {/* 変更がある時だけ表示される固定保存バー */}
+      {hasChanges && (
+        <div className="sticky bottom-0 left-0 right-0 bg-bg-card/95 backdrop-blur-sm border-t border-primary-light/30 px-4 py-3 flex items-center justify-between rounded-b-2xl">
+          <span className="text-xs text-accent">未保存の変更があります</span>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {saving ? '保存中...' : '変更を保存'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
