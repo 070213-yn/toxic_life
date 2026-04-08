@@ -191,6 +191,25 @@ export type CookingRecord = {
   profiles?: { display_name: string; avatar_emoji: string }
 }
 
+// ご褒美（マイルストーンに紐づく詳細なご褒美情報）
+export type Reward = {
+  id: string
+  milestone_id: string
+  created_by: string
+  title: string
+  description: string | null
+  image_path: string | null
+  url: string | null
+  message: string | null
+  planned_date: string | null
+  is_secret: boolean
+  is_revealed: boolean
+  revealed_at: string | null
+  created_at: string
+  updated_at: string
+  profiles?: { display_name: string; avatar_emoji: string }
+}
+
 // アプリ設定
 export type Setting = {
   id: string

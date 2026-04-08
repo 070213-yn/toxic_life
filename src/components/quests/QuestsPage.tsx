@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Milestone, Profile } from '@/lib/types'
+import type { Milestone, Profile, Reward } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { MilestoneCard } from './MilestoneCard'
 
@@ -12,11 +12,12 @@ type Props = {
   milestones: Milestone[]
   totalSavings: number
   profiles: Profile[]
+  rewardsByMilestone: Record<string, Reward[]> // マイルストーンIDごとのご褒美
 }
 
 // タスクページ全体のクライアントコンポーネント
 // 上部にサマリー、下にマイルストーンカード一覧を表示
-export default function QuestsPage({ milestones, totalSavings, profiles }: Props) {
+export default function QuestsPage({ milestones, totalSavings, profiles, rewardsByMilestone }: Props) {
   const router = useRouter()
 
   // 完了/未完了の分類
@@ -114,6 +115,7 @@ export default function QuestsPage({ milestones, totalSavings, profiles }: Props
               totalSavings={totalSavings}
               defaultExpanded={true}
               profiles={profiles}
+              rewards={rewardsByMilestone[milestone.id] ?? []}
             />
           ))}
 
@@ -130,6 +132,7 @@ export default function QuestsPage({ milestones, totalSavings, profiles }: Props
                   totalSavings={totalSavings}
                   defaultExpanded={false}
                   profiles={profiles}
+                  rewards={rewardsByMilestone[milestone.id] ?? []}
                 />
               ))}
             </div>

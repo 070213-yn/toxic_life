@@ -2,28 +2,37 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Milestone, Profile, Task } from '@/lib/types'
+import type { Milestone, Profile, Task, Reward } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskList } from './TaskList'
 import { AddTaskModal } from './AddTaskModal'
 import { ConfettiEffect } from './ConfettiEffect'
 import { notifyDiscord } from '@/lib/discord'
+import { RewardModal } from '@/components/rewards/RewardModal'
+import Link from 'next/link'
 
 type Props = {
   milestone: Milestone
   totalSavings: number
   defaultExpanded: boolean // 初期展開状態
   profiles: Profile[] // 担当者のアバター表示用
+  rewards?: Reward[] // このマイルストーンのご褒美一覧
 }
 
 // マイルストーンカード
 // 未完了は常に展開、完了済みは折りたたみ可能
-export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profiles }: Props) {
+export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profiles, rewards: initialRewards = [] }: Props) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [tasks, setTasks] = useState<Task[]>(milestone.tasks ?? [])
   const [showAddModal, setShowAddModal] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+
+  // ご褒美関連
+  const [rewardsList, setRewardsList] = useState<Reward[]>(initialRewards)
+  const [showRewardModal, setShowRewardModal] = useState(false)
+  const [rewardModalSecret, setRewardModalSecret] = useState(false)
+  const [editingReward, setEditingReward] = useState<Reward | null>(null)
 
   // 編集モード関連
   const [isEditing, setIsEditing] = useState(false)
@@ -111,15 +120,36 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     notifyDiscord(`📝 新しいタスク「${newTask.title}」が追加されました！（${newTask.assignee}）\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
   }, [])
 
-  // マイルストーン達成時の紙吹雪 + Discord通知
-  const handleMilestoneComplete = useCallback(() => {
+  // マイルストーン達成時の紙吹雪 + Discord通知 + 秘密のご褒美を公開
+  const handleMilestoneComplete = useCallback(async () => {
     setShowConfetti(true)
     setTimeout(() => setShowConfetti(false), 3000)
 
     // Discord通知（fire and forget）
     const subtitle = milestone.subtitle ? `${milestone.subtitle} ` : ''
     notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
-  }, [milestone.subtitle, milestone.title])
+
+    // 秘密のご褒美を公開する
+    const secretRewards = rewardsList.filter((r) => r.is_secret && !r.is_revealed)
+    if (secretRewards.length > 0) {
+      for (const reward of secretRewards) {
+        await supabase
+          .from('rewards')
+          .update({ is_revealed: true, revealed_at: new Date().toISOString() })
+          .eq('id', reward.id)
+
+        notifyDiscord(`🎁✨ 秘密のご褒美が見れるようになりました！\n[開封する →](https://toxiclife.vercel.app/rewards/${reward.id})`)
+      }
+      // ローカル状態も更新
+      setRewardsList((prev) =>
+        prev.map((r) =>
+          r.is_secret && !r.is_revealed
+            ? { ...r, is_revealed: true, revealed_at: new Date().toISOString() }
+            : r
+        )
+      )
+    }
+  }, [milestone.subtitle, milestone.title, rewardsList])
 
   // カードのスタイル（完了時は薄く）
   const cardStyle = isCompleted
@@ -304,6 +334,96 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                 </p>
               </div>
             )}
+
+            {/* ご褒美詳細一覧 + 管理ボタン */}
+            <div className="mt-3 space-y-2">
+              {/* 登録済みご褒美一覧 */}
+              {rewardsList.map((reward) => (
+                <div
+                  key={reward.id}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${
+                    reward.is_secret
+                      ? 'bg-purple-50/50 border-purple-200/40'
+                      : 'bg-pink-50/50 border-pink-200/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span>{reward.is_secret ? '🔮' : '🎁'}</span>
+                    <span className="text-sm text-text truncate">{reward.title}</span>
+                    {reward.is_secret && !reward.is_revealed && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-500 font-medium">秘密</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      onClick={() => {
+                        setEditingReward(reward)
+                        setRewardModalSecret(reward.is_secret)
+                        setShowRewardModal(true)
+                      }}
+                      className="p-1 rounded-lg text-text-sub/40 hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="編集"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        <path d="m15 5 4 4" />
+                      </svg>
+                    </button>
+                    <Link
+                      href={`/rewards/${reward.id}`}
+                      className="p-1 rounded-lg text-text-sub/40 hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="詳細を見る"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+
+              {/* ご褒美追加ボタン */}
+              <div className="flex items-center gap-2 pt-1">
+                {rewardsList.length === 0 && (
+                  <button
+                    onClick={() => {
+                      setEditingReward(null)
+                      setRewardModalSecret(false)
+                      setShowRewardModal(true)
+                    }}
+                    className="flex items-center gap-1 text-xs text-text-sub/50 hover:text-primary transition-colors py-1"
+                  >
+                    <span>🎁</span>
+                    ご褒美詳細を作成
+                  </button>
+                )}
+                {rewardsList.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setEditingReward(null)
+                      setRewardModalSecret(false)
+                      setShowRewardModal(true)
+                    }}
+                    className="flex items-center gap-1 text-xs text-text-sub/50 hover:text-primary transition-colors py-1"
+                  >
+                    <span>🎁</span>
+                    ご褒美を追加
+                  </button>
+                )}
+                <span className="text-text-sub/20">|</span>
+                <button
+                  onClick={() => {
+                    setEditingReward(null)
+                    setRewardModalSecret(true)
+                    setShowRewardModal(true)
+                  }}
+                  className="flex items-center gap-1 text-xs text-purple-400/60 hover:text-purple-500 transition-colors py-1"
+                >
+                  <span>🔮</span>
+                  秘密のご褒美を追加
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -314,6 +434,30 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
           milestoneId={milestone.id}
           onClose={() => setShowAddModal(false)}
           onAdd={handleTaskAdd}
+        />
+      )}
+
+      {/* ご褒美作成・編集モーダル */}
+      {showRewardModal && (
+        <RewardModal
+          milestoneId={milestone.id}
+          existingReward={editingReward}
+          defaultSecret={rewardModalSecret}
+          onClose={() => {
+            setShowRewardModal(false)
+            setEditingReward(null)
+          }}
+          onSaved={(savedReward) => {
+            if (editingReward) {
+              // 更新
+              setRewardsList((prev) =>
+                prev.map((r) => (r.id === savedReward.id ? savedReward : r))
+              )
+            } else {
+              // 新規追加
+              setRewardsList((prev) => [...prev, savedReward])
+            }
+          }}
         />
       )}
     </>

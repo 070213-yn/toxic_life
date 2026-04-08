@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import QuestsPage from '@/components/quests/QuestsPage'
-import type { Milestone, Profile } from '@/lib/types'
+import type { Milestone, Profile, Reward } from '@/lib/types'
 
 // タスクページ（サーバーコンポーネント）
 // データ取得のみ行い、表示は QuestsPage クライアントコンポーネントに委譲
@@ -23,7 +23,22 @@ export default async function QuestsPageServer() {
     .from('profiles')
     .select('*')
 
+  // ご褒美一覧を取得（マイルストーンごとに振り分ける）
+  const { data: rewardsData } = await supabase
+    .from('rewards')
+    .select('*, profiles:created_by(display_name, avatar_emoji)')
+    .order('created_at', { ascending: true })
+
   const profiles: Profile[] = profilesData ?? []
+
+  // マイルストーンIDごとにご褒美をグループ化
+  const rewardsByMilestone: Record<string, Reward[]> = {}
+  for (const reward of (rewardsData ?? []) as Reward[]) {
+    if (!rewardsByMilestone[reward.milestone_id]) {
+      rewardsByMilestone[reward.milestone_id] = []
+    }
+    rewardsByMilestone[reward.milestone_id].push(reward)
+  }
 
   const totalSavings = savingsData?.reduce((sum, s) => sum + (s.amount || 0), 0) ?? 0
 
@@ -65,6 +80,7 @@ export default async function QuestsPageServer() {
         milestones={sortedMilestones}
         totalSavings={totalSavings}
         profiles={profiles}
+        rewardsByMilestone={rewardsByMilestone}
       />
     </div>
   )
