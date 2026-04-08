@@ -475,7 +475,6 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
         </section>
 
         {/* ===== 参考情報セクション（タブ切り替え） ===== */}
-        <RefInfoTabs />
       </div>
     </div>
   )
