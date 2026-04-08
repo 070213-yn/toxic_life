@@ -130,6 +130,7 @@ export default function TimelineEditor() {
   const [savedJson, setSavedJson] = useState<string>(JSON.stringify(DEFAULT_ENTRIES))
   const [saving, setSaving] = useState(false)
   const [showCheck, setShowCheck] = useState(false)
+  const [editMode, setEditMode] = useState(false)
 
   // DB から読み込み
   useEffect(() => {
@@ -224,18 +225,38 @@ export default function TimelineEditor() {
 
   return (
     <div className="space-y-1">
+      {/* 閲覧/編集 切り替え */}
+      <div className="flex items-center justify-end mb-2">
+        <button
+          onClick={() => setEditMode(!editMode)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            editMode ? 'bg-primary text-white' : 'bg-primary-light/30 text-primary hover:bg-primary-light/50'
+          }`}
+        >
+          {editMode ? (
+            <>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+              閲覧モードへ
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              編集する
+            </>
+          )}
+        </button>
+      </div>
+
       {/* タイムラインリスト */}
       <div className="relative">
-        {/* 左のタイムラインライン */}
         <div className="absolute left-[18px] top-4 bottom-4 w-0.5 bg-primary-light/60 sm:left-[60px]" />
 
         <div className="space-y-3">
           {entries.map((entry) => (
             <div key={entry.id} className="relative flex gap-3 sm:gap-4">
-              {/* タイムラインドット */}
+              {/* タイムラインドット / 期間バッジ */}
               <div className="relative z-10 shrink-0 flex flex-col items-center pt-3">
                 <div className="w-3 h-3 rounded-full bg-primary border-2 border-primary-light sm:hidden" />
-                {/* PC: 期間バッジ */}
                 <div className="hidden sm:block">
                   <span className="inline-block text-[10px] font-medium text-text-sub bg-primary-light/50 px-2 py-1 rounded-lg whitespace-nowrap text-center leading-tight min-w-[100px]">
                     {formatPeriod(entry.startMonth, entry.endMonth)}
@@ -245,121 +266,85 @@ export default function TimelineEditor() {
 
               {/* カード */}
               <div className="flex-1 min-w-0 p-3 rounded-xl bg-bg/60 border border-primary-light/20">
-                {/* モバイル: 期間表示 */}
+                {/* モバイル: 期間バッジ */}
                 <div className="sm:hidden mb-2">
                   <span className="text-[10px] font-medium text-text-sub bg-primary-light/40 px-2 py-0.5 rounded-full">
                     {formatPeriod(entry.startMonth, entry.endMonth)}
                   </span>
                 </div>
 
-                {/* 期間入力 */}
-                <div className="flex items-center gap-1.5 mb-2">
-                  <input
-                    type="month"
-                    value={entry.startMonth}
-                    onChange={e => updateEntryPeriod(entry.id, 'startMonth', e.target.value)}
-                    className="px-2 py-1 rounded-lg border border-primary-light bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <span className="text-text-sub text-xs">〜</span>
-                  <input
-                    type="month"
-                    value={entry.endMonth}
-                    onChange={e => updateEntryPeriod(entry.id, 'endMonth', e.target.value)}
-                    className="px-2 py-1 rounded-lg border border-primary-light bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  {/* エントリ削除 */}
-                  <button
-                    onClick={() => removeEntry(entry.id)}
-                    className="ml-auto p-1 rounded-lg text-text-sub/40 hover:text-red-400 hover:bg-red-50 transition-colors"
-                    title="この期間を削除"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* タスクリスト */}
-                <div className="space-y-1.5">
-                  {entry.tasks.map((task, ti) => (
-                    <div key={ti} className="flex items-start gap-1.5 group/task">
-                      <div className="flex-1 min-w-0 flex flex-col sm:flex-row gap-1">
-                        <input
-                          type="text"
-                          value={task.title}
-                          onChange={e => updateTask(entry.id, ti, 'title', e.target.value)}
-                          placeholder="タスク名"
-                          className="sm:w-40 px-2 py-1 rounded-lg border border-primary-light/50 bg-white text-sm font-medium text-text focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40"
-                        />
-                        <input
-                          type="text"
-                          value={task.detail}
-                          onChange={e => updateTask(entry.id, ti, 'detail', e.target.value)}
-                          placeholder="詳細（任意）"
-                          className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-primary-light/30 bg-white text-xs text-text-sub focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40"
-                        />
-                      </div>
-                      {/* タスク削除 */}
-                      <button
-                        onClick={() => removeTask(entry.id, ti)}
-                        className="p-1 rounded-lg text-text-sub/30 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover/task:opacity-100 shrink-0"
-                        title="タスクを削除"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                {editMode ? (
+                  <>
+                    {/* 編集モード: 期間入力 */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <input type="month" value={entry.startMonth} onChange={e => updateEntryPeriod(entry.id, 'startMonth', e.target.value)} className="px-2 py-1 rounded-lg border border-primary-light bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <span className="text-text-sub text-xs">〜</span>
+                      <input type="month" value={entry.endMonth} onChange={e => updateEntryPeriod(entry.id, 'endMonth', e.target.value)} className="px-2 py-1 rounded-lg border border-primary-light bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <button onClick={() => removeEntry(entry.id)} className="ml-auto p-1 rounded-lg text-text-sub/40 hover:text-red-400 hover:bg-red-50 transition-colors" title="この期間を削除">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
-                  ))}
-                </div>
-
-                {/* タスク追加ボタン */}
-                <button
-                  onClick={() => addTask(entry.id)}
-                  className="mt-2 flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  タスクを追加
-                </button>
+                    {/* 編集モード: タスクリスト */}
+                    <div className="space-y-1.5">
+                      {entry.tasks.map((task, ti) => (
+                        <div key={ti} className="flex items-start gap-1.5 group/task">
+                          <div className="flex-1 min-w-0 flex flex-col sm:flex-row gap-1">
+                            <input type="text" value={task.title} onChange={e => updateTask(entry.id, ti, 'title', e.target.value)} placeholder="タスク名" className="sm:w-40 px-2 py-1 rounded-lg border border-primary-light/50 bg-white text-sm font-medium text-text focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40" />
+                            <input type="text" value={task.detail} onChange={e => updateTask(entry.id, ti, 'detail', e.target.value)} placeholder="詳細（任意）" className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-primary-light/30 bg-white text-xs text-text-sub focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40" />
+                          </div>
+                          <button onClick={() => removeTask(entry.id, ti)} className="p-1 rounded-lg text-text-sub/30 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover/task:opacity-100 shrink-0">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => addTask(entry.id)} className="mt-2 flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                      タスクを追加
+                    </button>
+                  </>
+                ) : (
+                  /* 閲覧モード: シンプル表示 */
+                  <div className="space-y-1">
+                    {entry.tasks.filter(t => t.title.trim()).map((task, ti) => (
+                      <div key={ti} className="flex items-baseline gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                        <div>
+                          <span className="text-sm font-medium text-text">{task.title}</span>
+                          {task.detail && <span className="text-xs text-text-sub ml-2">{task.detail}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 期間追加ボタン */}
-      <button
-        onClick={addEntry}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-primary-light/60 text-xs text-primary hover:bg-primary-light/20 transition-colors"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-        期間を追加
-      </button>
-
-      {/* 保存ボタン / チェックマーク */}
-      <div className="flex items-center justify-end gap-2 min-h-[36px] pt-1">
-        {showCheck && (
-          <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/20 text-success text-xs font-medium">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            保存しました
-          </span>
-        )}
-        {hasChanges && !showCheck && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {saving ? '保存中...' : '保存'}
+      {/* 編集モード時のみ: 期間追加 + 保存 */}
+      {editMode && (
+        <>
+          <button onClick={addEntry} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-primary-light/60 text-xs text-primary hover:bg-primary-light/20 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            期間を追加
           </button>
-        )}
-      </div>
+          <div className="flex items-center justify-end gap-2 min-h-[36px] pt-1">
+            {showCheck && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/20 text-success text-xs font-medium">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                保存しました
+              </span>
+            )}
+            {hasChanges && !showCheck && (
+              <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {saving ? '保存中...' : '保存'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

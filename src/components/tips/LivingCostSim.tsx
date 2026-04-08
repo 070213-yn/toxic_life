@@ -92,13 +92,16 @@ export default function LivingCostSim() {
       <div className="space-y-2">
         {items.map((item, i) => (
           <div
-            key={item.name}
-            className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 p-2.5 rounded-xl bg-bg/60 border border-primary-light/20"
+            key={i}
+            className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 p-2.5 rounded-xl bg-bg/60 border border-primary-light/20 group"
           >
-            {/* 項目名 */}
-            <span className="text-sm font-medium text-text w-24 shrink-0">
-              {item.name}
-            </span>
+            {/* 項目名（編集可能） */}
+            <input
+              type="text"
+              value={item.name}
+              onChange={e => updateItem(i, 'name', e.target.value)}
+              className="text-sm font-medium text-text w-24 shrink-0 bg-transparent border-none focus:outline-none focus:bg-white focus:border focus:border-primary-light/50 rounded-lg px-1 py-0.5"
+            />
 
             {/* 最小〜最大 入力 */}
             <div className="flex items-center gap-1.5">
@@ -130,9 +133,26 @@ export default function LivingCostSim() {
               placeholder="備考"
               className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-primary-light/50 bg-white text-xs text-text-sub focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40"
             />
+
+            {/* 削除ボタン */}
+            <button
+              onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
+              className="p-1 rounded-lg text-text-sub/30 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
         ))}
       </div>
+
+      {/* 項目追加ボタン */}
+      <button
+        onClick={() => setItems(prev => [...prev, { name: '', min: 0, max: 0, note: '' }])}
+        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+        項目を追加
+      </button>
 
       {/* 合計行 */}
       <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-light/30 border border-primary-light/50">
