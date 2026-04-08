@@ -347,23 +347,38 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
             {/* ご褒美詳細一覧 + 管理ボタン */}
             <div className="mt-3 space-y-2">
-              {/* 登録済みご褒美一覧（相手の秘密で未公開のものは非表示） */}
-              {rewardsList.filter((reward) => {
-                // 自分が作成した → 常に表示
-                if (reward.created_by === user?.id) return true
-                // 秘密でない → 表示
-                if (!reward.is_secret) return true
-                // 秘密で公開済み → 表示
-                if (reward.is_revealed) return true
-                // 秘密で期限切れ → 表示
-                if (milestone.deadline) {
+              {/* 登録済みご褒美一覧 */}
+              {rewardsList.map((reward) => {
+                const isOwn = reward.created_by === user?.id
+                const isSecretHidden = reward.is_secret && !isOwn && !reward.is_revealed && (() => {
+                  if (!milestone.deadline) return true
                   const deadline = new Date(milestone.deadline)
                   deadline.setHours(23, 59, 59, 999)
-                  if (new Date() > deadline) return true
+                  return new Date() <= deadline
+                })()
+
+                // 相手の秘密で未公開: 「秘密のご褒美があるみたいです」表示
+                if (isSecretHidden) {
+                  const creatorProfile = profiles.find(p => p.display_name && rewardsList.some(r => r.created_by !== user?.id))
+                  const creatorAvatar = reward.profiles?.avatar_emoji || creatorProfile?.avatar_emoji || '🔮'
+                  const creatorName = reward.profiles?.display_name || creatorProfile?.display_name || 'だれか'
+                  const isImg = creatorAvatar.startsWith('http') || creatorAvatar.startsWith('/')
+                  return (
+                    <div key={reward.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-purple-50/50 border border-purple-200/40">
+                      <span className="text-lg">🔮</span>
+                      <span className="text-sm text-purple-400 flex-1">秘密のご褒美があるみたいです</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden">
+                          {isImg ? <img src={creatorAvatar} alt="" className="w-full h-full object-cover" /> : <span className="text-xs">{creatorAvatar}</span>}
+                        </div>
+                        <span className="text-xs text-purple-400">{creatorName}</span>
+                      </div>
+                    </div>
+                  )
                 }
-                // 相手の秘密で未公開 → 非表示
-                return false
-              }).map((reward) => (
+
+                // 作成者の表示: (秘密) アイコン+名前 タイトル 目/編集/削除
+                return (
                 <div
                   key={reward.id}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${
@@ -373,20 +388,28 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span>{reward.is_secret ? '🔮' : '🎁'}</span>
-                    {/* 秘密のご褒美で非表示中はタイトルをマスク */}
+                    {reward.is_secret && <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-500 font-medium">秘密</span>}
+                    {!reward.is_secret && <span>🎁</span>}
+                    {/* 作成者のアバター+名前 */}
+                    {isOwn && reward.is_secret && (() => {
+                      const avatar = profiles.find(p => p.id === user?.id)?.avatar_emoji || '😊'
+                      const isImg = avatar.startsWith('http') || avatar.startsWith('/')
+                      return (
+                        <div className="w-5 h-5 rounded-full bg-primary-light/50 flex items-center justify-center overflow-hidden shrink-0">
+                          {isImg ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <span className="text-[10px]">{avatar}</span>}
+                        </div>
+                      )
+                    })()}
+                    {/* タイトル（非表示トグル対応） */}
                     {reward.is_secret && hiddenSecrets.has(reward.id) ? (
                       <span className="text-sm text-text-sub/40 italic">非表示中</span>
                     ) : (
                       <span className="text-sm text-text truncate">{reward.title}</span>
                     )}
-                    {reward.is_secret && !reward.is_revealed && (
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-500 font-medium">秘密</span>
-                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    {/* 秘密のご褒美の表示/非表示トグル（画面共有対策） */}
-                    {reward.is_secret && reward.created_by === user?.id && (
+                    {/* 目のアイコン（作成者のみ、秘密のみ） */}
+                    {reward.is_secret && isOwn && (
                       <button
                         onClick={() => setHiddenSecrets(prev => {
                           const next = new Set(prev)
@@ -396,41 +419,58 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                           return next
                         })}
                         className="p-1 rounded-lg text-text-sub/40 hover:text-purple-500 hover:bg-purple-50 transition-colors"
-                        title={hiddenSecrets.has(reward.id) ? '表示する' : '非表示にする（画面共有対策）'}
+                        title={hiddenSecrets.has(reward.id) ? '表示する' : '非表示にする'}
                       >
                         {hiddenSecrets.has(reward.id) ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
                         ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                         )}
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        setEditingReward(reward)
-                        setRewardModalSecret(reward.is_secret)
-                        setShowRewardModal(true)
-                      }}
-                      className="p-1 rounded-lg text-text-sub/40 hover:text-primary hover:bg-primary/10 transition-colors"
-                      title="編集"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                        <path d="m15 5 4 4" />
-                      </svg>
-                    </button>
+                    {/* 編集（作成者のみ） */}
+                    {isOwn && (
+                      <button
+                        onClick={() => {
+                          setEditingReward(reward)
+                          setRewardModalSecret(reward.is_secret)
+                          setShowRewardModal(true)
+                        }}
+                        className="p-1 rounded-lg text-text-sub/40 hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="編集"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                      </button>
+                    )}
+                    {/* 削除（作成者のみ） */}
+                    {isOwn && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm('このご褒美を削除しますか？')) return
+                          await supabase.from('rewards').delete().eq('id', reward.id)
+                          setRewardsList(prev => prev.filter(r => r.id !== reward.id))
+                          router.refresh()
+                        }}
+                        className="p-1 rounded-lg text-text-sub/40 hover:text-accent hover:bg-accent/10 transition-colors"
+                        title="削除"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                      </button>
+                    )}
+                    {/* 詳細リンク */}
                     <Link
                       href={`/rewards/${reward.id}`}
                       className="p-1 rounded-lg text-text-sub/40 hover:text-primary hover:bg-primary/10 transition-colors"
                       title="詳細を見る"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="m9 18 6-6-6-6" />
                       </svg>
                     </Link>
                   </div>
                 </div>
-              ))}
+                )
+              })}
 
               {/* ご褒美追加ボタン */}
               <div className="pt-1">
