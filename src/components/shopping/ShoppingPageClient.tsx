@@ -710,12 +710,28 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
             </div>
             <div>
               <label className="block text-xs font-medium text-text-sub mb-1">購入予定時期</label>
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {['セールで早めに', '2027年プライムデー', '2027年ブラックフライデー', '同棲直前', '同棲開始後', '新生活セール'].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setEditItemForm((p) => ({ ...p, planned_timing: opt }))}
+                    className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                      editItemForm.planned_timing === opt
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-text-sub border-primary-light/40 hover:border-primary/40'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
               <input
                 type="text"
                 value={editItemForm.planned_timing}
                 onChange={(e) => setEditItemForm((p) => ({ ...p, planned_timing: e.target.value }))}
-                placeholder="例: 引越し前日"
-                className="w-full px-3 py-2.5 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="自由入力もOK"
+                className="w-full px-3 py-2 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-text-sub/40"
               />
             </div>
             <div>
