@@ -6,6 +6,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import AvatarUpload from '@/components/AvatarUpload'
+import { playSound } from '@/lib/sounds'
 import SettingsPanel from '@/components/SettingsPanel'
 
 // アバター表示ヘルパー
@@ -204,6 +205,7 @@ export default function Navigation() {
               <Link
                 key={tab.href}
                 href={tab.href}
+                onClick={() => playSound('tab')}
                 className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-all duration-200 ${
                   active ? 'text-primary' : 'text-text-sub'
                 }`}

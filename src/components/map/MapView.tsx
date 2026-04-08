@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { supabase as supabaseClient } from '@/lib/supabase/client'
 import { findRentData } from '@/lib/rent-data'
 import { notifyDiscord } from '@/lib/discord'
+import { playSound } from '@/lib/sounds'
 import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
 
 // 目印ピンの色マッピング
@@ -156,6 +157,7 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
       label: homePlacing === 'shingo' ? 'しんごの実家' : 'あいりの実家',
     }
     await supabaseClient.from('settings').upsert({ key: 'home_locations', value: newLocations }, { onConflict: 'key' })
+    playSound('pin') // 実家PIN設置成功
     setHomeSaving(false)
     setHomeSaved(true)
     router.refresh()
@@ -175,6 +177,8 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
   // サイドバーからのフォーカス: focusedAreaId が変わったらパン＆ズーム
   useEffect(() => {
     if (!focusedAreaId || !mapRef.current) return
+
+    playSound('focus') // マップPINフォーカス
 
     // 実家へのフォーカス
     if (focusedAreaId === 'home-shingo' && homeLocations.shingo) {
@@ -336,6 +340,7 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
       .single()
 
     if (!error && data) {
+      playSound('pin') // 下見メモ作成成功
       setCreatedAreaId(data.id)
       // アクセス情報を自動計算（最寄り駅があれば）
       if (newStation.trim()) {
@@ -371,6 +376,7 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
         { onConflict: 'key' }
       )
 
+    playSound('pin') // 目印追加成功
     setMarkerSaving(false)
     setClickedPos(null)
     setClickMode(null)
@@ -405,6 +411,7 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
       .eq('id', pinAreaId)
 
     if (!error) {
+      playSound('pin') // エリアPIN設置成功
       setPinSaved(true)
       setPinPlacing(false)
       // アクセス情報を自動計算（ピン配置対象のエリアの最寄り駅を使う）

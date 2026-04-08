@@ -21,6 +21,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { playSound } from '@/lib/sounds'
 
 type Props = {
   tasks: Task[]
@@ -177,8 +178,9 @@ export function TaskList({
         })
         .eq('id', task.id)
 
-      // タスク完了時: Discord通知してメッセージIDを保存
+      // タスク完了時: 効果音 + Discord通知してメッセージIDを保存
       if (newCompleted) {
+        playSound('check') // タスク完了チェック
         notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！\n[タスクを見る →](https://toxiclife.vercel.app/quests)`).then((msgId) => {
           if (msgId) discordMsgMap.current.set(task.id, msgId)
         })
@@ -197,6 +199,7 @@ export function TaskList({
   // タスク削除
   const handleDelete = useCallback(
     async (taskId: string) => {
+      playSound('delete') // タスク削除
       onTaskDelete(taskId)
       await supabase.from('tasks').delete().eq('id', taskId)
     },
@@ -226,6 +229,8 @@ export function TaskList({
     async (event: DragEndEvent, groupTasks: Task[]) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
+
+      playSound('swap') // 並び替え成功
 
       const oldIndex = groupTasks.findIndex((t) => t.id === active.id)
       const newIndex = groupTasks.findIndex((t) => t.id === over.id)

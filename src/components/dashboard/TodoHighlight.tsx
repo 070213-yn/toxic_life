@@ -4,6 +4,7 @@ import { useState, useTransition, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import type { Milestone, Task } from '@/lib/types'
+import { playSound } from '@/lib/sounds'
 
 
 // 担当者グループ定義
@@ -32,6 +33,9 @@ export default function TodoHighlight({ milestone }: Props) {
 
   const toggleTask = useCallback(async (taskId: string, currentDone: boolean) => {
     const newDone = !currentDone
+    if (newDone) {
+      playSound('check') // タスク完了チェック
+    }
     if (!currentDone) {
       setJustCheckedId(taskId)
       setTimeout(() => setJustCheckedId(null), 400)

@@ -11,6 +11,7 @@ import { ConfettiEffect } from './ConfettiEffect'
 import { notifyDiscord } from '@/lib/discord'
 import { RewardModal } from '@/components/rewards/RewardModal'
 import Link from 'next/link'
+import { playSound } from '@/lib/sounds'
 
 type Props = {
   milestone: Milestone
@@ -126,6 +127,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
   // タスク追加コールバック + Discord通知
   const handleTaskAdd = useCallback((newTask: Task) => {
+    playSound('tab') // タスク追加
     setTasks((prev) => [...prev, newTask])
     notifyDiscord(`📝 新しいタスク「${newTask.title}」が追加されました！（${newTask.assignee}）\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
   }, [])
@@ -447,6 +449,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                       <button
                         onClick={async () => {
                           if (!confirm('このご褒美を削除しますか？')) return
+                          playSound('delete') // ご褒美削除
                           await supabase.from('rewards').delete().eq('id', reward.id)
                           setRewardsList(prev => prev.filter(r => r.id !== reward.id))
                           router.refresh()

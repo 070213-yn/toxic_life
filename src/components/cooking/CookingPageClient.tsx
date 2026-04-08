@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
 import { notifyDiscord } from '@/lib/discord'
 import type { CookingRecord } from '@/lib/types'
+import { playCookingSound } from '@/lib/sounds'
 
 // リアルタイム監視対象テーブル（コンポーネント外で定数定義）
 
@@ -228,8 +229,9 @@ export default function CookingPageClient({ records }: Props) {
         }
       }
 
-      // 新規作成時のみDiscord通知（編集時は通知しない）
+      // 新規作成時のみ効果音 + Discord通知（編集時は鳴らさない）
       if (!editingRecord) {
+        playCookingSound() // 料理記録（2音連続）
         const displayName = profile?.display_name || 'だれか'
         notifyDiscord(`🍳 ${displayName}が「${title.trim()}」を記録しました！\n[見てみる →](https://toxiclife.vercel.app/cooking)`)
       }

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
 import { notifyDiscord } from '@/lib/discord'
 import confetti from 'canvas-confetti'
+import { playSound } from '@/lib/sounds'
 
 // 貯金記録の追加フォーム
 // 金額・日付・メモを入力して保存する。user_idは認証情報から自動セット
@@ -69,7 +70,8 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
       return
     }
 
-    // 保存成功 → confetti演出 & 成功メッセージ表示
+    // 保存成功 → 効果音 & confetti演出 & 成功メッセージ表示
+    playSound('saving') // 貯金記録
     fireConfetti()
     setSuccessMessage('貯金を記録したよ！')
 

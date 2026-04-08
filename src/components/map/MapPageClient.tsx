@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
 import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
+import { playSound } from '@/lib/sounds'
 
 // 目印ピンの色マッピング
 const MARKER_COLORS: Record<string, string> = {
@@ -73,11 +74,11 @@ export default function MapPageClient({ areas, homeLocations, customMarkers }: P
   const focusAreaId = searchParams.get('focus_area_id')
   const pinArea = pinAreaId ? areas.find((a) => a.id === pinAreaId) : null
 
-  const handlePinClick = (id: string) => setFocusedAreaId(id)
+  const handlePinClick = (id: string) => { playSound('focus'); setFocusedAreaId(id) }
   const handleUnpinnedClick = (id: string) => { setSidebarPinAreaId(id); setSidebarOpen(false) }
   const handlePinPlaced = () => setSidebarPinAreaId(null)
   const handleHomeClick = (homeKey: 'shingo' | 'airi') => {
-    if (homeLocations[homeKey]) setFocusedAreaId(`home-${homeKey}`)
+    if (homeLocations[homeKey]) { playSound('focus'); setFocusedAreaId(`home-${homeKey}`) }
   }
   const handleHomePlaced = () => setHomePlacing(null)
 
