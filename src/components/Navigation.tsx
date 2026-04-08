@@ -126,6 +126,7 @@ export default function Navigation() {
   const { profile } = useAuth()
   const [showAvatarUpload, setShowAvatarUpload] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   // ユーザー名編集の状態管理
   const [isEditingName, setIsEditingName] = useState(false)
@@ -181,27 +182,103 @@ export default function Navigation() {
 
   return (
     <>
-      {/* モバイル: 画面下部の固定フッタータブ（アイコンのみ、選択中だけラベル表示） */}
+      {/* モバイル: 画面下部の固定フッタータブ（主要5タブ + その他） */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-bg-card/95 backdrop-blur-md border-t border-primary-light/50 safe-area-bottom">
-        <div className="flex justify-around items-center h-14 px-0.5">
-          {tabs.map((tab) => {
+        <div className="flex justify-around items-center h-14 px-1">
+          {tabs.slice(0, 5).map((tab) => {
             const active = isActive(tab.href)
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`flex flex-col items-center justify-center gap-0 px-1 py-1 rounded-lg transition-all duration-200 ${
-                  active ? 'text-primary' : 'text-text-sub hover:text-primary/70'
+                className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-all duration-200 ${
+                  active ? 'text-primary' : 'text-text-sub'
                 }`}
               >
-                <span className={`w-5 h-5 ${active ? 'drop-shadow-sm' : ''}`}>{tab.icon}</span>
-                {/* ラベルは選択中のタブのみ表示 */}
-                {active && <span className="text-[9px] font-medium leading-tight mt-0.5">{tab.label}</span>}
+                <span className="w-5 h-5">{tab.icon}</span>
+                <span className={`text-[9px] leading-tight mt-0.5 ${active ? 'font-medium' : ''}`}>{tab.label}</span>
               </Link>
             )
           })}
+          {/* その他メニュー */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-all duration-200 ${
+              showMobileMenu || tabs.slice(5).some((t) => isActive(t.href)) ? 'text-primary' : 'text-text-sub'
+            }`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+            </svg>
+            <span className="text-[9px] leading-tight mt-0.5">その他</span>
+          </button>
         </div>
       </nav>
+
+      {/* モバイル: その他メニュー（スライドアップ） */}
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setShowMobileMenu(false)} />
+          <div className="absolute bottom-14 left-0 right-0 bg-bg-card/95 backdrop-blur-md border-t border-primary-light/30 rounded-t-2xl shadow-lg safe-area-bottom" style={{ animation: 'fade-slide-up 0.2s ease-out' }}>
+            <div className="p-3 space-y-1">
+              {/* 残りのタブ */}
+              {tabs.slice(5).map((tab) => {
+                const active = isActive(tab.href)
+                return (
+                  <Link
+                    key={tab.href}
+                    href={tab.href}
+                    onClick={() => setShowMobileMenu(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                      active ? 'bg-primary-light/40 text-primary font-medium' : 'text-text-sub hover:bg-primary-light/20'
+                    }`}
+                  >
+                    <span className="w-5 h-5">{tab.icon}</span>
+                    <span className="text-sm">{tab.label}</span>
+                  </Link>
+                )
+              })}
+
+              <div className="border-t border-primary-light/20 my-1.5" />
+
+              {/* プロフィール */}
+              {profile && (
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <button onClick={() => { setShowMobileMenu(false); setShowAvatarUpload(true) }} className="shrink-0">
+                    <AvatarDisplay avatar={profile.avatar_emoji} size={32} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text truncate">{profile.display_name}</p>
+                    <p className="text-[10px] text-text-sub">タップでアイコン変更</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 設定 */}
+              <button
+                onClick={() => { setShowMobileMenu(false); setShowSettings(true) }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-text-sub hover:bg-primary-light/20 w-full"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+                <span className="text-sm">設定</span>
+              </button>
+
+              {/* ログアウト */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-text-sub hover:text-accent hover:bg-accent/10 w-full"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span className="text-sm">ログアウト</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PC: 左サイドバー */}
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-56 flex-col bg-bg-card border-r border-primary-light/30 shadow-sm">

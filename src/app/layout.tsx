@@ -28,6 +28,12 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: '卍Toxic Life卍',
   description: '同棲準備トラッカー',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 }
 
 export default function RootLayout({
