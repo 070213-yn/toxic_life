@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import QuestsPage from '@/components/quests/QuestsPage'
 import type { Milestone, Profile } from '@/lib/types'
 
-// クエストページ（サーバーコンポーネント）
+// タスクページ（サーバーコンポーネント）
 // データ取得のみ行い、表示は QuestsPage クライアントコンポーネントに委譲
 export default async function QuestsPageServer() {
   const supabase = await createClient()
@@ -56,7 +56,7 @@ export default async function QuestsPageServer() {
       {/* ヘッダー */}
       <div className="px-4 pt-8 pb-4 text-center">
         <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
-          Quest Board
+          Task Board
         </h1>
       </div>
 

@@ -6,7 +6,7 @@ import type { Milestone, Profile } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { MilestoneCard } from './MilestoneCard'
 
-// リアルタイム監視対象テーブル（クエストページ用）
+// リアルタイム監視対象テーブル（タスクページ用）
 
 type Props = {
   milestones: Milestone[]
@@ -14,7 +14,7 @@ type Props = {
   profiles: Profile[]
 }
 
-// クエストページ全体のクライアントコンポーネント
+// タスクページ全体のクライアントコンポーネント
 // 上部にサマリー、下にマイルストーンカード一覧を表示
 export default function QuestsPage({ milestones, totalSavings, profiles }: Props) {
   const router = useRouter()
@@ -102,7 +102,7 @@ export default function QuestsPage({ milestones, totalSavings, profiles }: Props
           <p className="text-4xl mb-4">
             {/* 巻物のアイコン（絵文字を使用） */}
           </p>
-          <p>まだクエストがありません</p>
+          <p>まだタスクがありません</p>
         </div>
       ) : (
         <div className="space-y-3 sm:space-y-4">

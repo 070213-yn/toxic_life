@@ -180,7 +180,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* 現在のクエスト（4カラム分） */}
+          {/* 現在のタスク（4カラム分） */}
           <div className="lg:col-span-4 min-h-[420px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '100ms' }}>
             <TodoHighlight milestone={currentMilestone} />
           </div>

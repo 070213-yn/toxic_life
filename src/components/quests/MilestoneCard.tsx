@@ -108,7 +108,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
   // タスク追加コールバック + Discord通知
   const handleTaskAdd = useCallback((newTask: Task) => {
     setTasks((prev) => [...prev, newTask])
-    notifyDiscord(`📝 新しいタスク「${newTask.title}」が追加されました！（${newTask.assignee}）\n[クエストを見る →](https://toxiclife.vercel.app/quests)`)
+    notifyDiscord(`📝 新しいタスク「${newTask.title}」が追加されました！（${newTask.assignee}）\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
   }, [])
 
   // マイルストーン達成時の紙吹雪 + Discord通知
@@ -118,7 +118,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
     // Discord通知（fire and forget）
     const subtitle = milestone.subtitle ? `${milestone.subtitle} ` : ''
-    notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！\n[クエストを見る →](https://toxiclife.vercel.app/quests)`)
+    notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
   }, [milestone.subtitle, milestone.title])
 
   // カードのスタイル（完了時は薄く）

@@ -63,8 +63,46 @@ export async function GET(request: Request) {
       msg += `　・${t.title}（${t.assignee}）\n`
     })
 
-    msg += `[クエストを確認 →](https://toxiclife.vercel.app/quests)`
+    msg += `[タスクを確認 →](https://toxiclife.vercel.app/quests)`
     messages.push(msg)
+  }
+
+  // Amazonセール時期の買い物候補通知
+  const SALE_SCHEDULE = [
+    { month: 1, name: '初売りセール', timing: '初売りセール' },
+    { month: 3, name: '新生活セール', timing: '新生活セール（3月）' },
+    { month: 5, name: 'GWセール', timing: 'セールで早めに' },
+    { month: 7, name: 'プライムデー', timing: 'プライムデー（7月）' },
+    { month: 9, name: '季節先取りセール', timing: 'セールで早めに' },
+    { month: 10, name: 'プライム感謝祭', timing: 'プライム感謝祭（10月）' },
+    { month: 11, name: 'ブラックフライデー', timing: 'ブラックフライデー（11月）' },
+  ]
+
+  const currentMonth = now.getMonth() + 1
+  const currentDay = now.getDate()
+  const sale = SALE_SCHEDULE.find((s) => s.month === currentMonth)
+
+  if (sale && currentDay === 1) {
+    // planned_timingがこのセールのtimingに一致するアイテムを取得
+    const { data: saleItems } = await supabase
+      .from('shopping_items')
+      .select('name, planned_timing, shopping_candidates(product_name, price, is_selected)')
+      .eq('planned_timing', sale.timing)
+      .neq('status', 'purchased')
+
+    if (saleItems && saleItems.length > 0) {
+      let saleMsg = `🛒 **${sale.name}** が近づいています！買い物候補:\n`
+      saleItems.forEach((item: { name: string; shopping_candidates?: { product_name: string; price: number | null; is_selected: boolean }[] | null }) => {
+        const selected = item.shopping_candidates?.find((c: { is_selected: boolean }) => c.is_selected)
+        if (selected) {
+          saleMsg += `　✅ ${item.name} → ${selected.product_name}（¥${selected.price?.toLocaleString() ?? '未定'}）\n`
+        } else {
+          saleMsg += `　⬜ ${item.name}（候補未定）\n`
+        }
+      })
+      saleMsg += `\n[買い物リストを確認 →](https://toxiclife.vercel.app/shopping)`
+      messages.push(saleMsg)
+    }
   }
 
   // 貯金進捗チェック

@@ -47,7 +47,7 @@ export default function MilestoneMap({ milestones }: Props) {
             </svg>
           </div>
           <p className="text-text-sub text-sm">マイルストーンはまだないよ</p>
-          <p className="text-text-sub/60 text-xs mt-1">クエストページから冒険を始めよう！</p>
+          <p className="text-text-sub/60 text-xs mt-1">タスクページから冒険を始めよう！</p>
         </div>
       </div>
     )

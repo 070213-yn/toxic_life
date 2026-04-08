@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
+import { notifyDiscord } from '@/lib/discord'
 import type { ShoppingCategory, ShoppingItem, ShoppingCandidate } from '@/lib/types'
 
 // リアルタイム監視テーブル
@@ -108,8 +109,8 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     return initial
   })
 
-  // 候補追加モーダル
-  const [addCandidateModal, setAddCandidateModal] = useState<{ itemId: string } | null>(null)
+  // 候補追加モーダル（Discord通知用にアイテム名・カテゴリ名も保持）
+  const [addCandidateModal, setAddCandidateModal] = useState<{ itemId: string; itemName: string; categoryName: string } | null>(null)
   const [candidateForm, setCandidateForm] = useState({ product_name: '', price: '', url: '', memo: '' })
   const [isSavingCandidate, setIsSavingCandidate] = useState(false)
 
@@ -233,6 +234,11 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       await supabase.from('shopping_candidates').update({ is_selected: false }).eq('item_id', itemId)
       await supabase.from('shopping_candidates').update({ is_selected: true }).eq('id', candidate.id)
       await supabase.from('shopping_items').update({ status: 'decided' }).eq('id', itemId)
+
+      // 仮決定時にDiscord通知（fire and forget）
+      const itemName = categories.flatMap((c) => c.shopping_items ?? []).find((i) => i.id === itemId)?.name ?? ''
+      const priceStr = candidate.price ? `¥${candidate.price.toLocaleString()}` : '未定'
+      notifyDiscord(`🔖 **${itemName}** の候補を「${candidate.product_name}」に仮決定しました（${priceStr}）\n[買い物リストを見る →](https://toxiclife.vercel.app/shopping)`)
     } else {
       await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
       await supabase.from('shopping_items').update({ status: newStatusOnDeselect }).eq('id', itemId)
@@ -265,6 +271,14 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       .update({ status: 'considering' })
       .eq('id', addCandidateModal.itemId)
       .eq('status', 'not_started')
+
+    // Discord通知（fire and forget）
+    let msg = `🛒 **${addCandidateModal.itemName}**（${addCandidateModal.categoryName}）に候補を追加しました\n商品名: ${candidateForm.product_name.trim()}`
+    if (candidateForm.price) msg += `\n価格: ¥${Number(candidateForm.price).toLocaleString()}`
+    if (candidateForm.url.trim()) msg += `\nURL: ${candidateForm.url.trim()}`
+    if (candidateForm.memo.trim()) msg += `\nメモ: ${candidateForm.memo.trim()}`
+    msg += `\n[買い物リストを見る →](https://toxiclife.vercel.app/shopping)`
+    notifyDiscord(msg)
 
     setIsSavingCandidate(false)
     setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
@@ -385,7 +399,14 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       }))
     )
     await supabase.from('shopping_items').update({ status: newStatus }).eq('id', itemId)
-  }, [])
+
+    // 「購入済み」に変更した時のみDiscord通知
+    if (newStatus === 'purchased') {
+      // アイテム名を取得
+      const itemName = categories.flatMap((c) => c.shopping_items ?? []).find((i) => i.id === itemId)?.name ?? ''
+      notifyDiscord(`✅ **${itemName}** を購入しました！\n[買い物リストを見る →](https://toxiclife.vercel.app/shopping)`)
+    }
+  }, [categories])
 
   // 優先度変更（楽観的UI更新）
   const handlePriorityChange = useCallback(async (itemId: string, newPriority: string) => {
@@ -538,8 +559,9 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
                       onPriorityChange={handlePriorityChange}
                       onToggleCandidate={toggleCandidateSelected}
                       onAddCandidate={(itemId) => {
+                        const itemName = cat.shopping_items?.find((i) => i.id === itemId)?.name ?? ''
                         setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
-                        setAddCandidateModal({ itemId })
+                        setAddCandidateModal({ itemId, itemName, categoryName: cat.name })
                       }}
                       onDeleteCandidate={deleteCandidate}
                       onEdit={openEditItem}
