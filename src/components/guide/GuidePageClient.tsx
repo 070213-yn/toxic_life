@@ -3,11 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { GuideItem } from '@/lib/types'
 
 // リアルタイム監視対象テーブル
-const REALTIME_TABLES = ['guide_items']
 
 // セクション定義（表示順序とアイコン・色）
 const SECTION_CONFIG: Record<string, { icon: string; color: string; bgColor: string }> = {
@@ -283,7 +281,6 @@ function ReferenceSection({ type }: { type: string }) {
 // メインのクライアントコンポーネント
 export default function GuidePageClient({ items }: { items: GuideItem[] }) {
   // リアルタイム監視
-  useRealtimeRefresh(REALTIME_TABLES)
 
   const { user } = useAuth()
 

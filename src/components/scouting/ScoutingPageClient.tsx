@@ -4,11 +4,9 @@
 // 並び替え・フィルタ機能 + 比較モード付きのカードグリッド表示
 
 import { useState, useCallback } from 'react'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { ScoutingArea } from '@/lib/types'
 
 // リアルタイム監視対象テーブル（下見一覧ページ用）
-const REALTIME_TABLES = ['scouting_areas', 'scouting_photos', 'scouting_ratings', 'scouting_comments']
 import AreaCard from './AreaCard'
 import AddAreaModal from './AddAreaModal'
 import dynamic from 'next/dynamic'
@@ -59,7 +57,6 @@ function extractRentNumber(memo: string | null): number {
 }
 
 export default function ScoutingPageClient({ areas }: Props) {
-  useRealtimeRefresh(REALTIME_TABLES)
   const [showModal, setShowModal] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('visited_date')
 

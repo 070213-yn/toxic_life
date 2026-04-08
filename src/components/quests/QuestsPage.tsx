@@ -4,11 +4,9 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Milestone, Profile } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import { MilestoneCard } from './MilestoneCard'
 
 // リアルタイム監視対象テーブル（クエストページ用）
-const REALTIME_TABLES = ['tasks', 'milestones']
 
 type Props = {
   milestones: Milestone[]
@@ -19,7 +17,6 @@ type Props = {
 // クエストページ全体のクライアントコンポーネント
 // 上部にサマリー、下にマイルストーンカード一覧を表示
 export default function QuestsPage({ milestones, totalSavings, profiles }: Props) {
-  useRealtimeRefresh(REALTIME_TABLES)
   const router = useRouter()
 
   // 完了/未完了の分類

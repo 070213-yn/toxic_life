@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
 // リアルタイム監視対象テーブル（マップページ用）
-const REALTIME_TABLES = ['scouting_areas']
 import MapView from './MapView'
 import HomeLocationModal from './HomeLocationModal'
 import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
@@ -62,7 +60,6 @@ function Avatar({ emoji, size = 20 }: { emoji: string; size?: number }) {
 }
 
 export default function MapPageClient({ areas, homeLocations, customMarkers }: Props) {
-  useRealtimeRefresh(REALTIME_TABLES)
   const [showHomeModal, setShowHomeModal] = useState(false)
   const [focusedAreaId, setFocusedAreaId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)

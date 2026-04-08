@@ -1,52 +1,54 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 /**
  * 指定したテーブルの変更をSupabase Realtimeで監視し、
- * 変更があったらページデータを再取得（router.refresh）するフック。
- *
- * 注意: Supabaseダッシュボードで各テーブルのReplication（リアルタイム配信）を
- * 有効にする必要があります。
- * Database > Replication > 対象テーブルを有効化
- *
- * @param tables - 監視対象のテーブル名の配列（コンポーネント外で定数定義推奨）
+ * 変更があったら「更新があります」トーストを表示するフック。
  */
 export function useRealtimeRefresh(tables: string[]) {
-  const router = useRouter()
-  // デバウンス用のタイマーを保持
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [showToast, setShowToast] = useState(false)
+
+  const handleReload = useCallback(() => {
+    setShowToast(false)
+    window.location.reload()
+  }, [])
+
+  const dismiss = useCallback(() => {
+    setShowToast(false)
+  }, [])
 
   useEffect(() => {
-    const channel = supabase.channel('realtime-refresh')
+    const channel = supabase.channel(`realtime-${tables.join('-')}`)
 
-    // 各テーブルの変更を監視
     tables.forEach((table) => {
       channel.on(
         'postgres_changes',
         {
-          event: '*', // INSERT, UPDATE, DELETE すべて監視
+          event: '*',
           schema: 'public',
           table,
         },
         () => {
-          // 500msのデバウンス: 短時間に大量の変更が来てもrefreshは1回だけ
+          // 自分の操作は各コンポーネント内で楽観的更新済み
+          // 相手の操作のみトースト表示
           if (timeoutRef.current) clearTimeout(timeoutRef.current)
           timeoutRef.current = setTimeout(() => {
-            router.refresh()
-          }, 500)
+            setShowToast(true)
+          }, 1000)
         }
       )
     })
 
     channel.subscribe()
 
-    // クリーンアップ: チャンネル解除とタイマークリア
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       channel.unsubscribe()
     }
-  }, [tables, router])
+  }, [tables])
+
+  return { showToast, handleReload, dismiss }
 }

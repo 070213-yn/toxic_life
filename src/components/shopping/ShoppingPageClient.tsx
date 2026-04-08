@@ -3,11 +3,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { ShoppingCategory, ShoppingItem, ShoppingCandidate } from '@/lib/types'
 
 // リアルタイム監視テーブル
-const REALTIME_TABLES = ['shopping_items', 'shopping_candidates']
 
 // ステータス定義
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -84,7 +82,6 @@ type Props = {
 export default function ShoppingPageClient({ categories: initialCategories }: Props) {
   const router = useRouter()
   // リアルタイム監視
-  useRealtimeRefresh(REALTIME_TABLES)
 
   // ローカルstate（楽観的更新用）
   const [categories, setCategories] = useState(initialCategories)

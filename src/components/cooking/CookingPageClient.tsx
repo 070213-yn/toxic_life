@@ -5,11 +5,9 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { CookingRecord } from '@/lib/types'
 
 // リアルタイム監視対象テーブル（コンポーネント外で定数定義）
-const REALTIME_TABLES = ['cooking_records']
 
 // Supabase Storageの公開URL生成
 function getPhotoUrl(path: string) {
@@ -92,7 +90,6 @@ export default function CookingPageClient({ records }: Props) {
   const { user, profile } = useAuth()
 
   // リアルタイム監視
-  useRealtimeRefresh(REALTIME_TABLES)
 
   // モーダル状態
   const [showForm, setShowForm] = useState(false)

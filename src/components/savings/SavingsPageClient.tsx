@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Saving } from '@/lib/types'
 
 // リアルタイム監視対象テーブル（貯金ページ用）
-const REALTIME_TABLES = ['savings']
 // rechartsを遅延ロード（初期バンドルから除外）
 const SavingsChart = dynamic(() => import('./SavingsChart').then(m => ({ default: m.SavingsChart })), {
   ssr: false,
@@ -25,7 +23,6 @@ type Props = {
 // 貯金管理ページのクライアント側ルートコンポーネント
 // サーバーから受け取った初期データを各子コンポーネントに配信する
 export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
-  useRealtimeRefresh(REALTIME_TABLES)
   const [showForm, setShowForm] = useState(false)
 
   return (
