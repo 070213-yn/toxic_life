@@ -261,7 +261,7 @@ export function TaskList({
       {grouped.map((group) => (
         <div
           key={group.label}
-          className={`rounded-xl ${group.styles.groupBg} border-l-[3px] ${group.styles.borderColor} px-3 py-2.5`}
+          className={`rounded-xl ${group.styles.groupBg} border-l-[3px] ${group.styles.borderColor} px-2 py-2 sm:px-3 sm:py-2.5`}
         >
           {/* 担当者ラベル（アバター付き） */}
           <p className="text-xs font-bold text-text-sub/80 mb-2 flex items-center gap-1.5">
@@ -370,7 +370,7 @@ function TaskItem({
 
   return (
     <div
-      className={`group flex items-start gap-3 py-2 px-3 rounded-xl transition-all duration-200 hover:bg-white/40 ${
+      className={`group flex items-start gap-2 py-2 px-2 sm:gap-3 sm:px-3 rounded-xl transition-all duration-200 hover:bg-white/40 ${
         task.is_completed ? 'opacity-50' : ''
       }`}
     >

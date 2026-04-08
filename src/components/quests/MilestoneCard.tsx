@@ -130,7 +130,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
         {/* --- ヘッダー --- */}
         {isEditing ? (
           // 編集モード
-          <div className="p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="p-3 sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-text-sub mb-1">タイトル</label>
@@ -180,7 +180,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
           </div>
         ) : (
           // 通常表示
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             {/* ヘッダー行: タイトル + 期限 + 編集ボタン */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
@@ -258,7 +258,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
         {/* --- 展開コンテンツ --- */}
         {(expanded || defaultExpanded) && !isEditing && (
-          <div className="px-5 pb-5 border-t border-text-sub/5">
+          <div className="px-3 pb-3 sm:px-5 sm:pb-5 border-t border-text-sub/5">
             {/* 貯金目標プログレス */}
             {milestone.savings_goal !== null && milestone.savings_goal > 0 && (
               <SavingsProgress

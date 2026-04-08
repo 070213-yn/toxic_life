@@ -26,7 +26,7 @@ export default async function AppLayout({
         <Navigation />
 
         {/* メインコンテンツ: PC時はサイドバー分の余白、モバイル時はフッター分の余白 */}
-        <main className="flex-1 md:ml-56 pb-20 md:pb-0">
+        <main className="flex-1 md:ml-56 pb-16 md:pb-0">
           {children}
         </main>
       </div>

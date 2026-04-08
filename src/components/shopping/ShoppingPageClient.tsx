@@ -298,7 +298,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
   }, [])
 
   return (
-    <div className="px-4 pb-28 md:pb-8 max-w-2xl mx-auto">
+    <div className="px-2 sm:px-6 pb-28 md:pb-8 max-w-2xl mx-auto">
       {/* 合計金額パネル（sticky） */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-bg/80 backdrop-blur-md">
         <div className="bg-bg-card rounded-2xl p-4 shadow-sm border border-primary-light/30">

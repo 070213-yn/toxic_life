@@ -245,7 +245,7 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
   return (
     <div className="min-h-screen pb-24 md:pb-8">
       {/* ヘッダー */}
-      <div className="relative px-4 pt-8 pb-6 max-w-4xl mx-auto">
+      <div className="relative px-2 sm:px-6 pt-8 pb-6 max-w-4xl mx-auto">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-light/40 text-sm text-text-sub mb-3">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -261,7 +261,7 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
         </div>
       </div>
 
-      <div className="px-4 max-w-4xl mx-auto space-y-6">
+      <div className="px-2 sm:px-6 max-w-4xl mx-auto space-y-6">
         {/* ===== 家賃帯セレクター（横スクロールチップ） ===== */}
         <div className="overflow-x-auto -mx-4 px-4 pt-4 pb-2">
           <div className="flex gap-2 min-w-max">

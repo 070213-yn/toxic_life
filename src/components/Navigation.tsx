@@ -31,7 +31,7 @@ const tabs = [
     label: 'ホーム',
     href: '/',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         <polyline points="9 22 9 12 15 12 15 22" />
       </svg>
@@ -41,7 +41,7 @@ const tabs = [
     label: '貯金',
     href: '/savings',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" />
         <path d="M12 6v2m0 8v2" />
@@ -52,7 +52,7 @@ const tabs = [
     label: 'クエスト',
     href: '/quests',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
@@ -62,7 +62,7 @@ const tabs = [
     label: '買い物',
     href: '/shopping',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="21" r="1" />
         <circle cx="20" cy="21" r="1" />
         <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
@@ -73,7 +73,7 @@ const tabs = [
     label: '料理',
     href: '/cooking',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
       </svg>
     ),
@@ -82,7 +82,7 @@ const tabs = [
     label: '下見',
     href: '/scouting',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
         <circle cx="12" cy="10" r="3" />
       </svg>
@@ -92,7 +92,7 @@ const tabs = [
     label: 'マップ',
     href: '/map',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
         <line x1="8" y1="2" x2="8" y2="18" />
         <line x1="16" y1="6" x2="16" y2="22" />
@@ -103,7 +103,7 @@ const tabs = [
     label: '履歴',
     href: '/activity',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
@@ -113,7 +113,7 @@ const tabs = [
     label: '物件ヒント',
     href: '/tips',
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 21h6m-3-3v3m-4-8a4 4 0 1 1 8 0c0 1.5-.8 2.5-2 3.5-.4.3-.7.7-.9 1.1H11c-.2-.4-.5-.8-.9-1.1C8.8 15.5 8 14.5 8 13z" />
       </svg>
     ),
@@ -181,23 +181,22 @@ export default function Navigation() {
 
   return (
     <>
-      {/* モバイル: 画面下部の固定フッタータブ */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-bg-card border-t border-primary-light/50 shadow-lg">
-        <div className="flex justify-around items-center h-16 px-1">
+      {/* モバイル: 画面下部の固定フッタータブ（アイコンのみ、選択中だけラベル表示） */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-bg-card/95 backdrop-blur-md border-t border-primary-light/50 safe-area-bottom">
+        <div className="flex justify-around items-center h-14 px-0.5">
           {tabs.map((tab) => {
             const active = isActive(tab.href)
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all duration-200 ${
-                  active
-                    ? 'text-primary scale-105'
-                    : 'text-text-sub hover:text-primary/70'
+                className={`flex flex-col items-center justify-center gap-0 px-1 py-1 rounded-lg transition-all duration-200 ${
+                  active ? 'text-primary' : 'text-text-sub hover:text-primary/70'
                 }`}
               >
-                <span className={active ? 'drop-shadow-sm' : ''}>{tab.icon}</span>
-                <span className="text-[10px] font-medium leading-tight">{tab.label}</span>
+                <span className={`w-5 h-5 ${active ? 'drop-shadow-sm' : ''}`}>{tab.icon}</span>
+                {/* ラベルは選択中のタブのみ表示 */}
+                {active && <span className="text-[9px] font-medium leading-tight mt-0.5">{tab.label}</span>}
               </Link>
             )
           })}

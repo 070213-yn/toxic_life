@@ -103,14 +103,14 @@ export default function ScoutingPageClient({ areas }: Props) {
   return (
     <div className="min-h-screen">
       {/* ヘッダー */}
-      <div className="px-6 pt-8 pb-2 max-w-7xl mx-auto">
+      <div className="px-2 sm:px-6 pt-8 pb-2 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">
           Scouting
         </h1>
       </div>
 
       {/* ツールバー */}
-      <div className="px-6 max-w-7xl mx-auto mt-4 flex items-center justify-between gap-3 flex-wrap">
+      <div className="px-2 sm:px-6 max-w-7xl mx-auto mt-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowModal(true)}
@@ -149,7 +149,7 @@ export default function ScoutingPageClient({ areas }: Props) {
 
       {/* 比較モード時のステータスバー */}
       {compareMode && (
-        <div className="px-6 max-w-7xl mx-auto mt-3">
+        <div className="px-2 sm:px-6 max-w-7xl mx-auto mt-3">
           <div className="bg-primary-light/30 rounded-xl px-4 py-3 flex items-center justify-between">
             <p className="text-sm text-text">
               {selectedIds.size === 0
@@ -169,7 +169,7 @@ export default function ScoutingPageClient({ areas }: Props) {
       )}
 
       {/* エリアカードグリッド */}
-      <div className="px-6 max-w-7xl mx-auto mt-5 pb-24 md:pb-8">
+      <div className="px-2 sm:px-6 max-w-7xl mx-auto mt-5 pb-24 md:pb-8">
         {sortedAreas.length === 0 ? (
           <div className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/30">
             <EmptyState

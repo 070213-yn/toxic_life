@@ -269,7 +269,7 @@ export default function CookingPageClient({ records }: Props) {
   }, [router])
 
   return (
-    <div className="px-4 pb-24 md:pb-8">
+    <div className="px-2 sm:px-6 pb-24 md:pb-8">
       {/* 記録するボタン */}
       <div className="flex justify-center mb-6">
         <button

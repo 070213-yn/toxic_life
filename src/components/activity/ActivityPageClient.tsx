@@ -185,7 +185,7 @@ export function ActivityPageClient({ savings, completedTasks }: Props) {
   ]
 
   return (
-    <div className="px-4 py-6 max-w-2xl mx-auto">
+    <div className="px-2 sm:px-6 py-6 max-w-2xl mx-auto">
       {/* ページヘッダー */}
       <h1 className="text-xl font-bold text-text mb-5">更新履歴</h1>
 

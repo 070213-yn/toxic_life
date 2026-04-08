@@ -60,9 +60,9 @@ export default function QuestsPage({ milestones, totalSavings, profiles }: Props
   }, [milestones])
 
   return (
-    <div className="px-3 pb-28 max-w-3xl mx-auto sm:px-6">
+    <div className="px-2 pb-28 max-w-3xl mx-auto sm:px-6">
       {/* --- 全体の進捗サマリー --- */}
-      <div className="mb-6 p-5 rounded-2xl bg-bg-card border border-primary-light/40 shadow-sm">
+      <div className="mb-6 p-3 sm:p-5 rounded-2xl bg-bg-card border border-primary-light/40 shadow-sm">
         {/* クリア数表示 */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold text-text">
@@ -108,7 +108,7 @@ export default function QuestsPage({ milestones, totalSavings, profiles }: Props
           <p>まだクエストがありません</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* 未完了マイルストーン（上に表示） */}
           {incomplete.map((milestone) => (
             <MilestoneCard

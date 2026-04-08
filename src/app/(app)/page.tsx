@@ -151,7 +151,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen">
       {/* ヘッダー: 日付とチャプター期限 */}
-      <header className="px-6 pt-6 pb-2 max-w-5xl mx-auto">
+      <header className="px-3 sm:px-6 pt-6 pb-2 max-w-5xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-xl font-bold text-text">{todayStr}</p>
           {currentMilestone?.deadline && (() => {
@@ -170,9 +170,9 @@ export default async function DashboardPage() {
       </header>
 
       {/* メインコンテンツ - 各セクションに staggered fade-slide-up アニメーション */}
-      <main className="mx-auto px-6 py-4 space-y-6">
+      <main className="mx-auto px-3 sm:px-6 py-4 space-y-6">
         {/* 上段: カウントダウン(左) + 今月のやること(中央広め) + 貯金(右) */}
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-5 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 sm:gap-5 items-stretch">
           {/* カウントダウン */}
           <div className="lg:col-span-1 min-h-[420px] flex" style={{ animation: 'fade-slide-up 0.5s ease-out both', animationDelay: '0ms' }}>
             <div className="w-full flex flex-col">
