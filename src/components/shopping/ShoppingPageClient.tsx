@@ -11,23 +11,23 @@ const REALTIME_TABLES = ['shopping_items', 'shopping_candidates']
 // ステータス定義
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   not_started: { label: '未検討', color: 'text-text-sub', bgColor: 'bg-gray-100' },
-  reviewing: { label: '検討中', color: 'text-amber-600', bgColor: 'bg-amber-50' },
+  considering: { label: '検討中', color: 'text-amber-600', bgColor: 'bg-amber-50' },
   decided: { label: '仮決定', color: 'text-purple-600', bgColor: 'bg-purple-50' },
   purchased: { label: '購入済み', color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
 }
 
 // 優先度定義
-const PRIORITY_CONFIG: Record<string, { label: string; mark: string }> = {
-  must: { label: '必須', mark: '◎' },
-  nice: { label: 'あると良い', mark: '○' },
-  later: { label: '後で', mark: '△' },
+const PRIORITY_CONFIG: Record<string, { label: string; mark: string; colorClass: string }> = {
+  must: { label: '必須', mark: '◎', colorClass: 'text-accent' },
+  nice: { label: 'あると良い', mark: '○', colorClass: 'text-primary' },
+  later: { label: '余裕あったら', mark: '△', colorClass: 'text-text-sub' },
 }
 
 // フィルターチップ
 const STATUS_FILTERS = [
   { key: 'all', label: '全て' },
   { key: 'not_started', label: '未検討' },
-  { key: 'reviewing', label: '検討中' },
+  { key: 'considering', label: '検討中' },
   { key: 'decided', label: '仮決定' },
   { key: 'purchased', label: '購入済み' },
 ]
@@ -166,14 +166,24 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     setOpenCategories((prev) => ({ ...prev, [catId]: !prev[catId] }))
   }, [])
 
-  // ステータス変更
-  const updateItemStatus = useCallback(async (itemId: string, newStatus: string) => {
-    await supabase.from('shopping_items').update({ status: newStatus }).eq('id', itemId)
-  }, [])
-
   // 候補の仮決定切り替え（楽観的UI更新 + DB保存）
   const toggleCandidateSelected = useCallback(async (candidate: ShoppingCandidate, itemId: string) => {
     const newSelected = !candidate.is_selected
+
+    // 仮決定解除時: そのアイテムの候補数を確認してステータスを決定
+    let newStatusOnDeselect = 'not_started'
+    if (!newSelected) {
+      // 現在のアイテムを探して候補数を確認
+      for (const cat of categories) {
+        const item = cat.shopping_items?.find((i) => i.id === itemId)
+        if (item) {
+          // 候補が1件以上あれば「検討中」、0件なら「未検討」
+          const candidateCount = item.shopping_candidates?.length ?? 0
+          newStatusOnDeselect = candidateCount > 0 ? 'considering' : 'not_started'
+          break
+        }
+      }
+    }
 
     // 楽観的更新: ローカルstateを即座に変更
     setCategories((prev) =>
@@ -183,7 +193,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
           if (item.id !== itemId) return item
           return {
             ...item,
-            status: newSelected ? 'decided' : 'considering',
+            status: newSelected ? 'decided' : newStatusOnDeselect,
             shopping_candidates: item.shopping_candidates?.map((c) => ({
               ...c,
               is_selected: c.id === candidate.id ? newSelected : false,
@@ -200,9 +210,9 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       await supabase.from('shopping_items').update({ status: 'decided' }).eq('id', itemId)
     } else {
       await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
-      await supabase.from('shopping_items').update({ status: 'considering' }).eq('id', itemId)
+      await supabase.from('shopping_items').update({ status: newStatusOnDeselect }).eq('id', itemId)
     }
-  }, [])
+  }, [categories])
 
   // 候補追加
   const handleAddCandidate = useCallback(async () => {
@@ -227,7 +237,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     // まだ未検討なら検討中に変更
     await supabase
       .from('shopping_items')
-      .update({ status: 'reviewing' })
+      .update({ status: 'considering' })
       .eq('id', addCandidateModal.itemId)
       .eq('status', 'not_started')
 
@@ -295,6 +305,69 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       memo: item.memo ?? '',
     })
     setEditItemModal({ item })
+  }, [])
+
+  // カテゴリ追加
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [categoryForm, setCategoryForm] = useState({ name: '', emoji: '' })
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+
+  const handleAddCategory = useCallback(async () => {
+    if (!categoryForm.name.trim()) return
+    setIsSavingCategory(true)
+
+    // 既存カテゴリの最大sort_orderを取得
+    const maxSortOrder = categories.reduce((max, cat) => Math.max(max, cat.sort_order), 0)
+
+    await supabase.from('shopping_categories').insert({
+      name: categoryForm.name.trim(),
+      emoji: categoryForm.emoji.trim() || null,
+      sort_order: maxSortOrder + 1,
+    })
+
+    setIsSavingCategory(false)
+    setCategoryForm({ name: '', emoji: '' })
+    setShowAddCategory(false)
+  }, [categoryForm, categories])
+
+  // カテゴリ削除
+  const deleteCategory = useCallback(async (catId: string) => {
+    if (!confirm('このカテゴリと中のアイテムをすべて削除しますか？')) return
+
+    // 楽観的更新
+    setCategories((prev) => prev.filter((cat) => cat.id !== catId))
+
+    await supabase.from('shopping_categories').delete().eq('id', catId)
+  }, [])
+
+  // ステータス変更（楽観的UI更新）
+  const handleStatusChange = useCallback(async (itemId: string, newStatus: string) => {
+    // 楽観的更新
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        shopping_items: cat.shopping_items?.map((item) => {
+          if (item.id !== itemId) return item
+          return { ...item, status: newStatus }
+        }),
+      }))
+    )
+    await supabase.from('shopping_items').update({ status: newStatus }).eq('id', itemId)
+  }, [])
+
+  // 優先度変更（楽観的UI更新）
+  const handlePriorityChange = useCallback(async (itemId: string, newPriority: string) => {
+    // 楽観的更新
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        shopping_items: cat.shopping_items?.map((item) => {
+          if (item.id !== itemId) return item
+          return { ...item, priority: newPriority }
+        }),
+      }))
+    )
+    await supabase.from('shopping_items').update({ priority: newPriority }).eq('id', itemId)
   }, [])
 
   return (
@@ -365,31 +438,43 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
           const isOpen = openCategories[cat.id] ?? true
 
           return (
-            <div key={cat.id} className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/20 overflow-hidden">
+            <div key={cat.id} className="bg-bg-card rounded-2xl shadow-sm border border-primary-light/20 overflow-hidden group/cat">
               {/* カテゴリヘッダー */}
-              <button
-                onClick={() => toggleCategory(cat.id)}
-                className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-primary-light/10 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xl">{cat.emoji}</span>
-                  <span className="font-medium text-sm text-text">{cat.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-text-sub">
-                    仮決定 {catStat?.decided ?? 0}/{catStat?.total ?? 0}件
-                    {(catStat?.subtotal ?? 0) > 0 && (
-                      <> | <span className="text-primary font-medium">{formatPrice(catStat.subtotal)}</span></>
-                    )}
-                  </span>
-                  <svg
-                    className={`w-4 h-4 text-text-sub transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              <div className="flex items-center">
+                <button
+                  onClick={() => toggleCategory(cat.id)}
+                  className="flex-1 px-4 py-3.5 flex items-center justify-between hover:bg-primary-light/10 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">{cat.emoji}</span>
+                    <span className="font-medium text-sm text-text">{cat.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-sub">
+                      仮決定 {catStat?.decided ?? 0}/{catStat?.total ?? 0}件
+                      {(catStat?.subtotal ?? 0) > 0 && (
+                        <> | <span className="text-primary font-medium">{formatPrice(catStat.subtotal)}</span></>
+                      )}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 text-text-sub transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+                {/* カテゴリ削除ボタン（ホバーで表示） */}
+                <button
+                  onClick={() => deleteCategory(cat.id)}
+                  className="shrink-0 p-2 mr-2 text-text-sub/0 group-hover/cat:text-text-sub/40 hover:!text-red-500 transition-all duration-200"
+                  title="カテゴリを削除"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                </div>
-              </button>
+                </button>
+              </div>
 
               {/* アイテム一覧 */}
               {isOpen && (
@@ -398,7 +483,8 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
                     <ItemCard
                       key={item.id}
                       item={item}
-                      onStatusChange={updateItemStatus}
+                      onStatusChange={handleStatusChange}
+                      onPriorityChange={handlePriorityChange}
                       onToggleCandidate={toggleCandidateSelected}
                       onAddCandidate={(itemId) => {
                         setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
@@ -428,6 +514,62 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
             </div>
           )
         })}
+      </div>
+
+      {/* カテゴリ追加 */}
+      <div className="mt-4">
+        {showAddCategory ? (
+          <div className="bg-bg-card rounded-2xl shadow-sm border border-dashed border-primary-light/40 p-4 space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-text-sub mb-1">カテゴリ名 *</label>
+                <input
+                  type="text"
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="例: 玄関"
+                  className="w-full px-3 py-2 rounded-xl border border-primary-light/30 bg-white text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  autoFocus
+                />
+              </div>
+              <div className="w-20">
+                <label className="block text-xs font-medium text-text-sub mb-1">絵文字</label>
+                <input
+                  type="text"
+                  value={categoryForm.emoji}
+                  onChange={(e) => setCategoryForm((p) => ({ ...p, emoji: e.target.value }))}
+                  placeholder="📦"
+                  className="w-full px-3 py-2 rounded-xl border border-primary-light/30 bg-white text-sm text-text text-center focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowAddCategory(false); setCategoryForm({ name: '', emoji: '' }) }}
+                className="flex-1 py-2 rounded-xl text-xs font-medium text-text-sub bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleAddCategory}
+                disabled={!categoryForm.name.trim() || isSavingCategory}
+                className="flex-1 py-2 rounded-xl text-xs font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-40 transition-colors"
+              >
+                {isSavingCategory ? '追加中...' : '追加する'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddCategory(true)}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-primary-light/30 text-text-sub text-xs font-medium hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            カテゴリを追加
+          </button>
+        )}
       </div>
 
       {/* フィルター結果なし */}
@@ -599,10 +741,43 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
   )
 }
 
+// ===== ドロップダウンメニュー コンポーネント =====
+function DropdownMenu({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div ref={ref} className="absolute left-0 top-full mt-1 z-20 bg-bg-card rounded-lg shadow-lg border border-primary-light/30 py-1 min-w-[120px]">
+      {children}
+    </div>
+  )
+}
+
 // ===== アイテムカード コンポーネント =====
 function ItemCard({
   item,
   onStatusChange,
+  onPriorityChange,
   onToggleCandidate,
   onAddCandidate,
   onDeleteCandidate,
@@ -611,6 +786,7 @@ function ItemCard({
 }: {
   item: ShoppingItem
   onStatusChange: (id: string, status: string) => void
+  onPriorityChange: (id: string, priority: string) => void
   onToggleCandidate: (candidate: ShoppingCandidate, itemId: string) => void
   onAddCandidate: (itemId: string) => void
   onDeleteCandidate: (candidateId: string) => void
@@ -620,6 +796,8 @@ function ItemCard({
   const statusCfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.not_started
   const priorityCfg = PRIORITY_CONFIG[item.priority] ?? PRIORITY_CONFIG.must
   const [showActions, setShowActions] = useState(false)
+  const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const [showPriorityMenu, setShowPriorityMenu] = useState(false)
 
   return (
     <div className="px-4 py-3 border-b border-primary-light/10 last:border-b-0 transition-all duration-300"
@@ -627,23 +805,70 @@ function ItemCard({
     >
       {/* 上段: ステータス・アイテム名・優先度 */}
       <div className="flex items-start gap-2.5">
-        {/* ステータスバッジ（タップで切り替え） */}
-        <button
-          onClick={() => {
-            const statuses = ['not_started', 'reviewing', 'decided', 'purchased']
-            const idx = statuses.indexOf(item.status)
-            const next = statuses[(idx + 1) % statuses.length]
-            onStatusChange(item.id, next)
-          }}
-          className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-200 ${statusCfg.bgColor} ${statusCfg.color}`}
-        >
-          {statusCfg.label}
-        </button>
+        {/* ステータスバッジ（タップでドロップダウン） */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setShowStatusMenu(!showStatusMenu)}
+            className={`mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-200 ${statusCfg.bgColor} ${statusCfg.color} hover:opacity-80`}
+          >
+            {statusCfg.label}
+          </button>
+          <DropdownMenu isOpen={showStatusMenu} onClose={() => setShowStatusMenu(false)}>
+            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  onStatusChange(item.id, key)
+                  setShowStatusMenu(false)
+                }}
+                className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${
+                  item.status === key
+                    ? 'bg-primary-light/20 font-medium'
+                    : 'hover:bg-primary-light/10'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${cfg.bgColor} border ${
+                  key === 'not_started' ? 'border-gray-300' :
+                  key === 'considering' ? 'border-amber-300' :
+                  key === 'decided' ? 'border-purple-300' :
+                  'border-emerald-300'
+                }`} />
+                <span className={cfg.color}>{cfg.label}</span>
+              </button>
+            ))}
+          </DropdownMenu>
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-medium text-text truncate">{item.name}</span>
-            <span className="shrink-0 text-[10px] text-text-sub">{priorityCfg.mark}{priorityCfg.label}</span>
+            {/* 優先度バッジ（タップでドロップダウン） */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowPriorityMenu(!showPriorityMenu)}
+                className={`text-[10px] ${priorityCfg.colorClass} hover:opacity-70 transition-opacity`}
+              >
+                {priorityCfg.mark}{priorityCfg.label}
+              </button>
+              <DropdownMenu isOpen={showPriorityMenu} onClose={() => setShowPriorityMenu(false)}>
+                {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      onPriorityChange(item.id, key)
+                      setShowPriorityMenu(false)
+                    }}
+                    className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${
+                      item.priority === key
+                        ? 'bg-primary-light/20 font-medium'
+                        : 'hover:bg-primary-light/10'
+                    }`}
+                  >
+                    <span className={cfg.colorClass}>{cfg.mark} {cfg.label}</span>
+                  </button>
+                ))}
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* メモ・タイミング */}
