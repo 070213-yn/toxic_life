@@ -711,7 +711,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
             <div>
               <label className="block text-xs font-medium text-text-sub mb-1">購入予定時期</label>
               <div className="flex flex-wrap gap-1.5 mb-1.5">
-                {['セールで早めに', '2027年プライムデー', '2027年ブラックフライデー', '同棲直前', '同棲開始後', '新生活セール'].map((opt) => (
+                {['セールで早めに', 'プライムデー（7月）', 'ブラックフライデー（11月）', '新生活セール（3月）', '同棲直前（6月）', '同棲開始後'].map((opt) => (
                   <button
                     key={opt}
                     type="button"
