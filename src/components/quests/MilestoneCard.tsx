@@ -35,8 +35,14 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
   const [showRewardModal, setShowRewardModal] = useState(false)
   const [rewardModalSecret, setRewardModalSecret] = useState(false)
   const [editingReward, setEditingReward] = useState<Reward | null>(null)
-  // 秘密のご褒美を自分側で非表示にするstate（画面共有対策）
-  const [hiddenSecrets, setHiddenSecrets] = useState<Set<string>>(new Set())
+  // 秘密のご褒美を自分側で非表示にするstate（画面共有対策、localStorageで永続化）
+  const [hiddenSecrets, setHiddenSecrets] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const saved = localStorage.getItem('toxic-life-hidden-secrets')
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch { return new Set() }
+  })
 
   // 編集モード関連
   const [isEditing, setIsEditing] = useState(false)
@@ -371,6 +377,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                           const next = new Set(prev)
                           if (next.has(reward.id)) next.delete(reward.id)
                           else next.add(reward.id)
+                          try { localStorage.setItem('toxic-life-hidden-secrets', JSON.stringify([...next])) } catch {}
                           return next
                         })}
                         className="p-1 rounded-lg text-text-sub/40 hover:text-purple-500 hover:bg-purple-50 transition-colors"
