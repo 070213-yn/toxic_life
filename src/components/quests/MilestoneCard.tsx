@@ -442,6 +442,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
       {showRewardModal && (
         <RewardModal
           milestoneId={milestone.id}
+          milestoneTitle={currentTitle}
           existingReward={editingReward}
           defaultSecret={rewardModalSecret}
           onClose={() => {

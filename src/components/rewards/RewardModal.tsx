@@ -9,14 +9,15 @@ import type { Reward } from '@/lib/types'
 
 type Props = {
   milestoneId: string
-  existingReward?: Reward | null  // 編集時に既存データを渡す
-  defaultSecret?: boolean         // 「秘密のご褒美を追加」から開いた時はtrue
+  milestoneTitle: string
+  existingReward?: Reward | null
+  defaultSecret?: boolean
   onClose: () => void
   onSaved: (reward: Reward) => void
 }
 
 // ご褒美作成・編集モーダル
-export function RewardModal({ milestoneId, existingReward, defaultSecret = false, onClose, onSaved }: Props) {
+export function RewardModal({ milestoneId, milestoneTitle, existingReward, defaultSecret = false, onClose, onSaved }: Props) {
   const router = useRouter()
   const { user, profile } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -99,9 +100,9 @@ export function RewardModal({ milestoneId, existingReward, defaultSecret = false
 
         // Discord通知（更新）
         if (isSecret) {
-          notifyDiscord(`🎁 秘密のご褒美が更新されました！`)
+          notifyDiscord(`🎁 チャプター「${milestoneTitle}」の秘密のご褒美が編集されました！`)
         } else {
-          notifyDiscord(`🎁 ご褒美の内容が更新されました！\n[ご褒美を見る →](https://toxiclife.vercel.app/rewards/${existingReward.id})`)
+          notifyDiscord(`🎁 チャプター「${milestoneTitle}」のご褒美が更新されました！\n[ご褒美を見る →](https://toxiclife.vercel.app/rewards/${existingReward.id})`)
         }
 
         onSaved(data as Reward)
@@ -144,9 +145,9 @@ export function RewardModal({ milestoneId, existingReward, defaultSecret = false
         // Discord通知（新規作成）
         if (isSecret) {
           const creatorName = profile?.display_name ?? 'だれか'
-          notifyDiscord(`🎁 秘密のご褒美が追加されました！\n${creatorName}からのサプライズです`)
+          notifyDiscord(`🎁 チャプター「${milestoneTitle}」の秘密のご褒美が追加されました！\n${creatorName}からのサプライズです`)
         } else if (newReward) {
-          notifyDiscord(`🎁 ご褒美の内容が更新されました！\n[ご褒美を見る →](https://toxiclife.vercel.app/rewards/${newReward.id})`)
+          notifyDiscord(`🎁 チャプター「${milestoneTitle}」のご褒美が追加されました！\n[ご褒美を見る →](https://toxiclife.vercel.app/rewards/${newReward.id})`)
         }
 
         if (newReward) onSaved(newReward as Reward)
