@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { ShoppingCategory, ShoppingItem, ShoppingCandidate } from '@/lib/types'
@@ -81,11 +82,17 @@ type Props = {
 }
 
 export default function ShoppingPageClient({ categories: initialCategories }: Props) {
+  const router = useRouter()
   // リアルタイム監視
   useRealtimeRefresh(REALTIME_TABLES)
 
   // ローカルstate（楽観的更新用）
   const [categories, setCategories] = useState(initialCategories)
+
+  // DB操作後にサーバーデータを再取得する共通関数
+  const refreshData = useCallback(() => {
+    router.refresh()
+  }, [router])
 
   // propsが変わったら同期（リアルタイム更新時）
   useEffect(() => {
@@ -265,13 +272,15 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     setIsSavingCandidate(false)
     setCandidateForm({ product_name: '', price: '', url: '', memo: '' })
     setAddCandidateModal(null)
-  }, [addCandidateModal, candidateForm])
+    refreshData()
+  }, [addCandidateModal, candidateForm, refreshData])
 
   // 候補削除
   const deleteCandidate = useCallback(async (candidateId: string) => {
     if (!confirm('この候補を削除しますか？')) return
     await supabase.from('shopping_candidates').delete().eq('id', candidateId)
-  }, [])
+    refreshData()
+  }, [refreshData])
 
   // アイテム追加
   const handleAddItem = useCallback(async () => {
@@ -293,7 +302,8 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     setIsSavingItem(false)
     setItemForm({ name: '', priority: 'must' })
     setAddItemModal(null)
-  }, [addItemModal, itemForm])
+    refreshData()
+  }, [addItemModal, itemForm, refreshData])
 
   // アイテム編集
   const handleEditItem = useCallback(async () => {
@@ -309,13 +319,15 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
 
     setIsSavingEdit(false)
     setEditItemModal(null)
-  }, [editItemModal, editItemForm])
+    refreshData()
+  }, [editItemModal, editItemForm, refreshData])
 
   // アイテム削除
   const deleteItem = useCallback(async (itemId: string) => {
     if (!confirm('このアイテムと候補をすべて削除しますか？')) return
     await supabase.from('shopping_items').delete().eq('id', itemId)
-  }, [])
+    refreshData()
+  }, [refreshData])
 
   // 編集モーダルを開く
   const openEditItem = useCallback((item: ShoppingItem) => {
@@ -349,7 +361,8 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     setIsSavingCategory(false)
     setCategoryForm({ name: '', emoji: '' })
     setShowAddCategory(false)
-  }, [categoryForm, categories])
+    refreshData()
+  }, [categoryForm, categories, refreshData])
 
   // カテゴリ削除
   const deleteCategory = useCallback(async (catId: string) => {
@@ -359,7 +372,8 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
     setCategories((prev) => prev.filter((cat) => cat.id !== catId))
 
     await supabase.from('shopping_categories').delete().eq('id', catId)
-  }, [])
+    refreshData()
+  }, [refreshData])
 
   // ステータス変更（楽観的UI更新）
   const handleStatusChange = useCallback(async (itemId: string, newStatus: string) => {
