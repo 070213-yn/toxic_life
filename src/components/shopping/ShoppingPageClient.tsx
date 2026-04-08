@@ -235,10 +235,6 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       await supabase.from('shopping_candidates').update({ is_selected: true }).eq('id', candidate.id)
       await supabase.from('shopping_items').update({ status: 'decided' }).eq('id', itemId)
 
-      // 仮決定時にDiscord通知（fire and forget）
-      const itemName = categories.flatMap((c) => c.shopping_items ?? []).find((i) => i.id === itemId)?.name ?? ''
-      const priceStr = candidate.price ? `¥${candidate.price.toLocaleString()}` : '未定'
-      notifyDiscord(`🔖 **${itemName}** の候補を「${candidate.product_name}」に仮決定しました（${priceStr}）\n[買い物リストを見る →](https://toxiclife.vercel.app/shopping)`)
     } else {
       await supabase.from('shopping_candidates').update({ is_selected: false }).eq('id', candidate.id)
       await supabase.from('shopping_items').update({ status: newStatusOnDeselect }).eq('id', itemId)
