@@ -117,6 +117,13 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
   const [markerSaving, setMarkerSaving] = useState(false)
   const [markerDeletingId, setMarkerDeletingId] = useState<string | null>(null)
 
+  // 目印ピン編集用state
+  const [editMarkerLabel, setEditMarkerLabel] = useState('')
+  const [editMarkerColor, setEditMarkerColor] = useState<CustomMarker['color']>('blue')
+  const [editMarkerUrl, setEditMarkerUrl] = useState('')
+  const [editMarkerMemo, setEditMarkerMemo] = useState('')
+  const [editMarkerSaving, setEditMarkerSaving] = useState(false)
+
   // 機能B: ピン配置モード
   const [pinPlacing, setPinPlacing] = useState(!!pinAreaId)
   const [pinPos, setPinPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -206,6 +213,11 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
         setSelectedMarker(marker.id)
         setSelectedArea(null)
         setSelectedHome(null)
+        // 編集用stateを現在の値で初期化
+        setEditMarkerLabel(marker.label)
+        setEditMarkerColor(marker.color)
+        setEditMarkerUrl(marker.url || '')
+        setEditMarkerMemo(marker.memo || '')
       }
       return
     }
@@ -396,6 +408,33 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
       )
 
     setMarkerDeletingId(null)
+    setSelectedMarker(null)
+    router.refresh()
+  }
+
+  // 目印ピンを編集保存
+  const handleUpdateMarker = async (markerId: string) => {
+    setEditMarkerSaving(true)
+    const updatedMarkers = customMarkers.map((m) => {
+      if (m.id !== markerId) return m
+      return {
+        ...m,
+        label: editMarkerLabel.trim() || m.label,
+        color: editMarkerColor,
+        url: editMarkerUrl.trim() || undefined,
+        memo: editMarkerMemo.trim() || undefined,
+      }
+    })
+
+    await supabaseClient
+      .from('settings')
+      .upsert(
+        { key: 'custom_markers', value: { markers: updatedMarkers } },
+        { onConflict: 'key' }
+      )
+
+    playSound('pin') // 目印編集成功
+    setEditMarkerSaving(false)
     setSelectedMarker(null)
     router.refresh()
   }
@@ -810,28 +849,141 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
               strokeColor: '#ffffff',
               strokeWeight: 1.5,
             }}
-            onClick={() => { setSelectedMarker(marker.id); setSelectedArea(null); setSelectedHome(null) }}
+            onClick={() => {
+              setSelectedMarker(marker.id)
+              setSelectedArea(null)
+              setSelectedHome(null)
+              // 編集用stateを現在の値で初期化
+              setEditMarkerLabel(marker.label)
+              setEditMarkerColor(marker.color)
+              setEditMarkerUrl(marker.url || '')
+              setEditMarkerMemo(marker.memo || '')
+            }}
           >
             {selectedMarker === marker.id && (
               <InfoWindowF
                 position={{ lat: marker.lat, lng: marker.lng }}
                 onCloseClick={() => setSelectedMarker(null)}
               >
-                <div className="min-w-[140px] p-1">
-                  <div className="flex items-center gap-1.5 mb-1.5">
+                <div style={{ minWidth: 240, maxWidth: 300, padding: 4, fontFamily: 'system-ui, sans-serif' }}>
+                  {/* ラベル編集 + 色の丸 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue }}
+                      style={{
+                        width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+                        backgroundColor: MARKER_COLORS[editMarkerColor] || MARKER_COLORS.blue,
+                      }}
                     />
-                    <p className="font-bold text-sm text-gray-800">{marker.label}</p>
+                    <input
+                      type="text"
+                      value={editMarkerLabel}
+                      onChange={(e) => setEditMarkerLabel(e.target.value)}
+                      style={{
+                        flex: 1, fontSize: 14, fontWeight: 700, color: '#1f2937',
+                        border: '1px solid #e5e7eb', borderRadius: 6,
+                        padding: '4px 8px', outline: 'none',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = '#a78bfa' }}
+                      onBlur={(e) => { e.target.style.borderColor = '#e5e7eb' }}
+                    />
                   </div>
-                  <button
-                    onClick={() => handleDeleteMarker(marker.id)}
-                    disabled={markerDeletingId === marker.id}
-                    className="w-full px-3 py-1 text-xs text-red-500 border border-red-200 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    {markerDeletingId === marker.id ? '削除中...' : '削除'}
-                  </button>
+
+                  {/* 区切り線 */}
+                  <div style={{ borderTop: '1px solid #e5e7eb', marginBottom: 8 }} />
+
+                  {/* 色選択チップ */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: '#6b7280', flexShrink: 0 }}>色:</span>
+                    {COLOR_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setEditMarkerColor(opt.value)}
+                        title={opt.label}
+                        style={{
+                          width: 22, height: 22, borderRadius: '50%', border: 'none',
+                          backgroundColor: opt.hex, cursor: 'pointer',
+                          outline: editMarkerColor === opt.value ? '2px solid #374151' : '2px solid transparent',
+                          outlineOffset: 1,
+                          transform: editMarkerColor === opt.value ? 'scale(1.15)' : 'scale(1)',
+                          transition: 'all 0.15s',
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* URL入力 */}
+                  <div style={{ marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 2 }}>URL</label>
+                    <input
+                      type="text"
+                      value={editMarkerUrl}
+                      onChange={(e) => setEditMarkerUrl(e.target.value)}
+                      placeholder="https://..."
+                      style={{
+                        width: '100%', fontSize: 12, color: '#374151',
+                        border: '1px solid #e5e7eb', borderRadius: 6,
+                        padding: '4px 8px', outline: 'none', boxSizing: 'border-box',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = '#a78bfa' }}
+                      onBlur={(e) => { e.target.style.borderColor = '#e5e7eb' }}
+                    />
+                  </div>
+
+                  {/* メモ入力 */}
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 2 }}>メモ</label>
+                    <input
+                      type="text"
+                      value={editMarkerMemo}
+                      onChange={(e) => setEditMarkerMemo(e.target.value)}
+                      placeholder="メモを入力..."
+                      style={{
+                        width: '100%', fontSize: 12, color: '#374151',
+                        border: '1px solid #e5e7eb', borderRadius: 6,
+                        padding: '4px 8px', outline: 'none', boxSizing: 'border-box',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = '#a78bfa' }}
+                      onBlur={(e) => { e.target.style.borderColor = '#e5e7eb' }}
+                    />
+                  </div>
+
+                  {/* 区切り線 */}
+                  <div style={{ borderTop: '1px solid #e5e7eb', marginBottom: 8 }} />
+
+                  {/* 保存・削除ボタン */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => handleUpdateMarker(marker.id)}
+                      disabled={editMarkerSaving || !editMarkerLabel.trim()}
+                      style={{
+                        flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 600,
+                        color: '#fff', backgroundColor: editMarkerSaving ? '#c4b5fd' : '#7c3aed',
+                        border: 'none', borderRadius: 20, cursor: editMarkerSaving ? 'wait' : 'pointer',
+                        opacity: !editMarkerLabel.trim() ? 0.5 : 1,
+                        transition: 'background-color 0.15s',
+                      }}
+                      onMouseEnter={(e) => { if (!editMarkerSaving) (e.target as HTMLButtonElement).style.backgroundColor = '#6d28d9' }}
+                      onMouseLeave={(e) => { if (!editMarkerSaving) (e.target as HTMLButtonElement).style.backgroundColor = '#7c3aed' }}
+                    >
+                      {editMarkerSaving ? '保存中...' : '保存'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMarker(marker.id)}
+                      disabled={markerDeletingId === marker.id}
+                      style={{
+                        flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 600,
+                        color: '#ef4444', backgroundColor: 'transparent',
+                        border: '1px solid #fecaca', borderRadius: 20,
+                        cursor: markerDeletingId === marker.id ? 'wait' : 'pointer',
+                        opacity: markerDeletingId === marker.id ? 0.5 : 1,
+                        transition: 'background-color 0.15s',
+                      }}
+                      onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.backgroundColor = '#fef2f2' }}
+                      onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.backgroundColor = 'transparent' }}
+                    >
+                      {markerDeletingId === marker.id ? '削除中...' : '削除'}
+                    </button>
+                  </div>
                 </div>
               </InfoWindowF>
             )}

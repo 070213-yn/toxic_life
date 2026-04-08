@@ -234,15 +234,28 @@ function SidebarContent({ areas, homeLocations, customMarkers, pinnedCount, focu
               <button
                 key={marker.id}
                 onClick={() => onMarkerClick(marker)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
+                className={`w-full px-3 py-2 rounded-lg text-left transition-colors ${
                   focusedAreaId === `marker-${marker.id}` ? 'bg-primary-light/30' : 'hover:bg-primary-light/20'
                 }`}
               >
-                <span
-                  className="shrink-0 w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue }}
-                />
-                <p className="text-sm text-text truncate">{marker.label}</p>
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="shrink-0 w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: MARKER_COLORS[marker.color] || MARKER_COLORS.blue }}
+                  />
+                  <p className="text-sm text-text truncate flex-1">{marker.label}</p>
+                  {/* URLがある場合はリンクアイコン表示 */}
+                  {marker.url && (
+                    <svg className="w-3.5 h-3.5 text-text-sub/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+                    </svg>
+                  )}
+                </div>
+                {/* メモがある場合は1行プレビュー */}
+                {marker.memo && (
+                  <p className="text-[11px] text-text-sub/70 truncate mt-0.5 pl-5">{marker.memo}</p>
+                )}
               </button>
             ))}
           </>

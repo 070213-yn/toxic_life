@@ -22,6 +22,9 @@ export type CustomMarker = {
   lng: number
   label: string
   color: 'blue' | 'green' | 'orange' | 'pink'
+  url?: string     // リンクURL
+  memo?: string    // メモテキスト
+  image?: string   // 画像URL（将来用）
 }
 
 // マップ用のエリアデータ型
