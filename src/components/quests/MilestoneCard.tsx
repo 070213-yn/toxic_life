@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Milestone, Profile, Task, Reward } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/components/AuthProvider'
 import { TaskList } from './TaskList'
 import { AddTaskModal } from './AddTaskModal'
 import { ConfettiEffect } from './ConfettiEffect'
@@ -23,6 +24,7 @@ type Props = {
 // 未完了は常に展開、完了済みは折りたたみ可能
 export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profiles, rewards: initialRewards = [] }: Props) {
   const router = useRouter()
+  const { user } = useAuth()
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [tasks, setTasks] = useState<Task[]>(milestone.tasks ?? [])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -33,6 +35,8 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
   const [showRewardModal, setShowRewardModal] = useState(false)
   const [rewardModalSecret, setRewardModalSecret] = useState(false)
   const [editingReward, setEditingReward] = useState<Reward | null>(null)
+  // 秘密のご褒美を自分側で非表示にするstate（画面共有対策）
+  const [hiddenSecrets, setHiddenSecrets] = useState<Set<string>>(new Set())
 
   // 編集モード関連
   const [isEditing, setIsEditing] = useState(false)
@@ -349,12 +353,36 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span>{reward.is_secret ? '🔮' : '🎁'}</span>
-                    <span className="text-sm text-text truncate">{reward.title}</span>
+                    {/* 秘密のご褒美で非表示中はタイトルをマスク */}
+                    {reward.is_secret && hiddenSecrets.has(reward.id) ? (
+                      <span className="text-sm text-text-sub/40 italic">非表示中</span>
+                    ) : (
+                      <span className="text-sm text-text truncate">{reward.title}</span>
+                    )}
                     {reward.is_secret && !reward.is_revealed && (
                       <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-500 font-medium">秘密</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
+                    {/* 秘密のご褒美の表示/非表示トグル（画面共有対策） */}
+                    {reward.is_secret && reward.created_by === user?.id && (
+                      <button
+                        onClick={() => setHiddenSecrets(prev => {
+                          const next = new Set(prev)
+                          if (next.has(reward.id)) next.delete(reward.id)
+                          else next.add(reward.id)
+                          return next
+                        })}
+                        className="p-1 rounded-lg text-text-sub/40 hover:text-purple-500 hover:bg-purple-50 transition-colors"
+                        title={hiddenSecrets.has(reward.id) ? '表示する' : '非表示にする（画面共有対策）'}
+                      >
+                        {hiddenSecrets.has(reward.id) ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setEditingReward(reward)
@@ -383,44 +411,17 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
               ))}
 
               {/* ご褒美追加ボタン */}
-              <div className="flex items-center gap-2 pt-1">
-                {rewardsList.length === 0 && (
-                  <button
-                    onClick={() => {
-                      setEditingReward(null)
-                      setRewardModalSecret(false)
-                      setShowRewardModal(true)
-                    }}
-                    className="flex items-center gap-1 text-xs text-text-sub/50 hover:text-primary transition-colors py-1"
-                  >
-                    <span>🎁</span>
-                    ご褒美詳細を作成
-                  </button>
-                )}
-                {rewardsList.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setEditingReward(null)
-                      setRewardModalSecret(false)
-                      setShowRewardModal(true)
-                    }}
-                    className="flex items-center gap-1 text-xs text-text-sub/50 hover:text-primary transition-colors py-1"
-                  >
-                    <span>🎁</span>
-                    ご褒美を追加
-                  </button>
-                )}
-                <span className="text-text-sub/20">|</span>
+              <div className="pt-1">
                 <button
                   onClick={() => {
                     setEditingReward(null)
-                    setRewardModalSecret(true)
+                    setRewardModalSecret(false)
                     setShowRewardModal(true)
                   }}
-                  className="flex items-center gap-1 text-xs text-purple-400/60 hover:text-purple-500 transition-colors py-1"
+                  className="flex items-center gap-1 text-xs text-text-sub/50 hover:text-primary transition-colors py-1"
                 >
-                  <span>🔮</span>
-                  秘密のご褒美を追加
+                  <span>🎁</span>
+                  ご褒美を追加
                 </button>
               </div>
             </div>

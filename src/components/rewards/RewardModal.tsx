@@ -178,7 +178,7 @@ export function RewardModal({ milestoneId, existingReward, defaultSecret = false
           {/* ヘッダー */}
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-text">
-              {isEditing ? 'ご褒美を編集' : isSecret || defaultSecret ? '🔮 秘密のご褒美' : '🎁 ご褒美を追加'}
+              {isEditing ? '🎁 ご褒美を編集' : '🎁 ご褒美を追加'}
             </h3>
             <button
               onClick={onClose}
@@ -289,7 +289,7 @@ export function RewardModal({ milestoneId, existingReward, defaultSecret = false
             <div>
               <span className="text-sm font-medium text-text">🔮 秘密にする</span>
               <p className="text-xs text-text-sub/60 mt-0.5">
-                チャプタークリアまで相手には見えません
+                チャプターの期限が終わるまで、ご褒美の内容は相手に分かりません。
               </p>
             </div>
           </label>
