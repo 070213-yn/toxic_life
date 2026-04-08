@@ -75,7 +75,7 @@ export function AddSavingForm({ onClose }: { onClose: () => void }) {
 
     // Discord通知（fire and forget）
     const displayName = profile?.display_name || 'だれか'
-    notifyDiscord(`💰 ${displayName}が ¥${numAmount.toLocaleString()} を貯金しました！`)
+    notifyDiscord(`💰 ${displayName}が ¥${numAmount.toLocaleString()} を貯金しました！\n[貯金を見る →](https://toxiclife.vercel.app/savings)`)
     setSaving(false)
 
     // フォームをリセット

@@ -196,7 +196,7 @@ function AddChapterSection({
       if (error) throw error
 
       // Discord通知（fire and forget）
-      notifyDiscord(`📋 新しいクエスト「${title.trim()}」が追加されました！`)
+      notifyDiscord(`📋 新しいクエスト「${title.trim()}」が追加されました！\n[クエストを見る →](https://toxiclife.vercel.app/quests)`)
 
       closeForm()
       onAdded()

@@ -117,7 +117,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
     // Discord通知（fire and forget）
     const subtitle = milestone.subtitle ? `${milestone.subtitle} ` : ''
-    notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！`)
+    notifyDiscord(`🎉 ${subtitle}「${milestone.title}」をクリアしました！おめでとう！\n[クエストを見る →](https://toxiclife.vercel.app/quests)`)
   }, [milestone.subtitle, milestone.title])
 
   // カードのスタイル（完了時は薄く）

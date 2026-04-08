@@ -7,6 +7,7 @@ import { useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { findRentData } from '@/lib/rent-data'
+import { notifyDiscord } from '@/lib/discord'
 import Image from 'next/image'
 
 type Props = {
@@ -140,6 +141,9 @@ export default function AddAreaModal({ onClose }: Props) {
           sort_order: i,
         })
       }
+
+      // Discord通知（fire and forget）
+      notifyDiscord(`📍 新しい下見メモ「${name.trim()}」が追加されました！\n最寄り駅: ${nearestStation.trim() || '未設定'}\n[詳細を見る →](https://toxiclife.vercel.app/scouting/${area.id})`)
 
       // ページをリフレッシュしてモーダルを閉じる
       router.refresh()

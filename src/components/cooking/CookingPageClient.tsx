@@ -231,7 +231,7 @@ export default function CookingPageClient({ records }: Props) {
       // 新規作成時のみDiscord通知（編集時は通知しない）
       if (!editingRecord) {
         const displayName = profile?.display_name || 'だれか'
-        notifyDiscord(`🍳 ${displayName}が「${title.trim()}」を記録しました！`)
+        notifyDiscord(`🍳 ${displayName}が「${title.trim()}」を記録しました！\n[見てみる →](https://toxiclife.vercel.app/cooking)`)
       }
 
       setShowForm(false)

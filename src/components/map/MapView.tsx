@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase as supabaseClient } from '@/lib/supabase/client'
 import { findRentData } from '@/lib/rent-data'
+import { notifyDiscord } from '@/lib/discord'
 import type { HomeLocations, MapArea, CustomMarker } from '@/app/(app)/map/page'
 
 // 目印ピンの色マッピング
@@ -340,6 +341,8 @@ export default function MapView({ areas, homeLocations, customMarkers, pinAreaId
       if (newStation.trim()) {
         calcAndSaveAccessInfo(data.id, newStation.trim())
       }
+      // Discord通知（fire and forget）
+      notifyDiscord(`📍 新しい下見メモ「${newAreaName.trim()}」が追加されました！\n最寄り駅: ${newStation.trim() || '未設定'}\n[詳細を見る →](https://toxiclife.vercel.app/scouting/${data.id})`)
       router.refresh()
     }
     setCreating(false)

@@ -177,7 +177,7 @@ export function TaskList({
 
       // タスク完了時にDiscord通知（fire and forget）
       if (newCompleted) {
-        notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！`)
+        notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！\n[クエストを見る →](https://toxiclife.vercel.app/quests)`)
       }
     },
     [onTaskUpdate]

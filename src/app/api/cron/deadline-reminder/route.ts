@@ -63,6 +63,7 @@ export async function GET(request: Request) {
       msg += `　・${t.title}（${t.assignee}）\n`
     })
 
+    msg += `[クエストを確認 →](https://toxiclife.vercel.app/quests)`
     messages.push(msg)
   }
 
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
     const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysLeft === 10 || daysLeft === 7 || daysLeft === 3) {
-      messages.push(`💰 貯金目標まであと **¥${remaining.toLocaleString()}** 必要です（現在 ¥${totalSavings.toLocaleString()} / ¥${nextMs.savings_goal.toLocaleString()}）`)
+      messages.push(`💰 貯金目標まであと **¥${remaining.toLocaleString()}** 必要です（現在 ¥${totalSavings.toLocaleString()} / ¥${nextMs.savings_goal.toLocaleString()}）\n[貯金を確認 →](https://toxiclife.vercel.app/savings)`)
     }
   }
 
