@@ -474,48 +474,54 @@ export default function AreaHintPageClient({ tiers }: { tiers: BudgetTier[] }) {
           </div>
         </section>
 
-        {/* ===== 参考情報セクション ===== */}
-        <div className="space-y-3">
-          <h2 className="flex items-center gap-2 font-bold text-text text-lg">
-            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            参考情報
-          </h2>
+        {/* ===== 参考情報セクション（タブ切り替え） ===== */}
+        <RefInfoTabs />
+      </div>
+    </div>
+  )
+}
 
-          {/* 生活費シミュレーション */}
-          <CollapsibleSection
-            icon="💰"
-            title="月々の生活費シミュレーション"
-            colorClass="text-success"
-            bgClass="bg-emerald-50"
-            borderClass="border-emerald-200"
-          >
-            <LivingCostSim />
-          </CollapsibleSection>
+// 参考情報タブ切り替えコンポーネント
+const REF_TABS = [
+  { id: 'cost', label: '💰 生活費', shortLabel: '生活費' },
+  { id: 'sale', label: '🛒 セール', shortLabel: 'セール' },
+  { id: 'timeline', label: '📅 タイムライン', shortLabel: 'TL' },
+] as const
 
-          {/* Amazonセールカレンダー */}
-          <CollapsibleSection
-            icon="🛒"
-            title="Amazonセール活用カレンダー"
-            colorClass="text-primary"
-            bgClass="bg-orange-50"
-            borderClass="border-orange-200"
-          >
-            <SaleCalendar />
-          </CollapsibleSection>
+function RefInfoTabs() {
+  const [activeTab, setActiveTab] = useState<string>('cost')
 
-          {/* タイムライン全体像 */}
-          <CollapsibleSection
-            icon="📅"
-            title="同棲までのタイムライン"
-            colorClass="text-primary"
-            bgClass="bg-violet-50"
-            borderClass="border-violet-200"
+  return (
+    <div>
+      <h2 className="flex items-center gap-2 font-bold text-text text-lg mb-3">
+        <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        参考情報
+      </h2>
+
+      {/* タブヘッダー */}
+      <div className="flex gap-1 mb-4 bg-primary-light/20 rounded-xl p-1">
+        {REF_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all duration-200 ${
+              activeTab === tab.id
+                ? 'bg-bg-card text-primary shadow-sm'
+                : 'text-text-sub hover:text-text'
+            }`}
           >
-            <TimelineEditor />
-          </CollapsibleSection>
-        </div>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* タブコンテンツ */}
+      <div className="bg-bg-card/80 rounded-2xl border border-primary-light/30 p-4">
+        {activeTab === 'cost' && <LivingCostSim />}
+        {activeTab === 'sale' && <SaleCalendar />}
+        {activeTab === 'timeline' && <TimelineEditor />}
       </div>
     </div>
   )

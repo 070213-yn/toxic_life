@@ -126,15 +126,15 @@ export default function SaleCalendar() {
                 : 'bg-bg/60 border-primary-light/20'
             }`}
           >
-            {/* 年月バッジ */}
-            <span className="inline-flex items-center gap-1 shrink-0">
+            {/* 年月バッジ（固定幅） */}
+            <span className="shrink-0 w-[60px]">
               <span className="text-[10px] font-medium text-text-sub bg-primary-light/40 px-2 py-0.5 rounded-full whitespace-nowrap">
                 {sale.label}
               </span>
             </span>
 
-            {/* セール名 */}
-            <span className="text-sm font-medium text-text shrink-0 whitespace-nowrap">
+            {/* セール名（固定幅） */}
+            <span className="text-sm font-medium text-text shrink-0 w-[120px] whitespace-nowrap">
               {sale.name}
               {sale.isBig && <span className="ml-1">🔥</span>}
             </span>
