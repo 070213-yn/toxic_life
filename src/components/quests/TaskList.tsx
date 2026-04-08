@@ -255,7 +255,7 @@ export function TaskList({
     : groupedKnown
 
   return (
-    <div className="pt-4 space-y-4">
+    <div className="pt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
       {grouped.map((group) => (
         <div
           key={group.label}

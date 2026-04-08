@@ -31,7 +31,7 @@ export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
   return (
     <div className="min-h-screen">
       {/* ヘッダー */}
-      <header className="px-2 sm:px-6 pt-6 pb-2 max-w-4xl mx-auto">
+      <header className="px-2 sm:px-6 pt-6 pb-2 max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text font-[family-name:var(--font-quicksand)]">
@@ -50,7 +50,7 @@ export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
         </div>
       </header>
 
-      <main className="px-2 sm:px-6 pb-24 max-w-4xl mx-auto space-y-6">
+      <main className="px-2 sm:px-6 pb-24 max-w-6xl mx-auto space-y-6">
         {/* 貯金追加フォーム（トグル表示） */}
         {showForm && (
           <div className="animate-[slideDown_0.3s_ease-out]">
@@ -58,13 +58,16 @@ export function SavingsPageClient({ initialSavings, goal, moveInDate }: Props) {
           </div>
         )}
 
-        {/* 月別サマリーカード */}
-        <MonthlySummary savings={initialSavings} goal={goal} moveInDate={moveInDate} />
+        {/* PCでサマリーとチャートを横並び */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 月別サマリーカード */}
+          <MonthlySummary savings={initialSavings} goal={goal} moveInDate={moveInDate} />
 
-        {/* 貯金推移チャート */}
-        <SavingsChart savings={initialSavings} goal={goal} />
+          {/* 貯金推移チャート */}
+          <SavingsChart savings={initialSavings} goal={goal} />
+        </div>
 
-        {/* 貯金記録一覧 */}
+        {/* 貯金記録一覧（全幅） */}
         <SavingsTable savings={initialSavings} />
       </main>
     </div>

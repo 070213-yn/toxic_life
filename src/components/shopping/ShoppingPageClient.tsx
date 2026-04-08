@@ -392,40 +392,37 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
   }, [])
 
   return (
-    <div className="px-2 sm:px-6 pb-28 md:pb-8 max-w-2xl mx-auto">
-      {/* 合計金額パネル（sticky） */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-bg/80 backdrop-blur-md">
-        <div className="bg-bg-card rounded-2xl p-4 shadow-sm border border-primary-light/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-text-sub">仮決定 合計金額</p>
-              <p className="text-2xl font-bold text-primary font-[family-name:var(--font-quicksand)] mt-0.5"
+    <div className="px-2 sm:px-6 pb-28 md:pb-8 max-w-7xl mx-auto">
+      {/* 合計金額パネル（sticky・コンパクト） */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-bg/80 backdrop-blur-md">
+        <div className="bg-bg-card rounded-xl px-4 py-2.5 shadow-sm border border-primary-light/30">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <p className="text-xl font-bold text-primary font-[family-name:var(--font-quicksand)]"
                  style={{ animation: 'count-up-glow 0.6s ease-out' }}
               >
                 {formatPrice(animatedPrice)}
               </p>
+              <span className="text-xs text-text-sub">仮決定合計</span>
             </div>
-            <div className="text-right">
+            <div className="flex items-center gap-3">
               <p className="text-xs text-text-sub">
-                全 {stats.totalItems} アイテム中
+                {stats.decidedItems}/{stats.totalItems} 件仮決定
               </p>
-              <p className="text-sm font-medium text-primary mt-0.5">
-                {stats.decidedItems} 件仮決定済み
-              </p>
+              {/* プログレスバー */}
+              <div className="w-20 h-1.5 bg-primary-light/30 rounded-full overflow-hidden hidden sm:block">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${stats.totalItems > 0 ? (stats.decidedItems / stats.totalItems) * 100 : 0}%` }}
+                />
+              </div>
             </div>
-          </div>
-          {/* プログレスバー */}
-          <div className="mt-3 h-1.5 bg-primary-light/30 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${stats.totalItems > 0 ? (stats.decidedItems / stats.totalItems) * 100 : 0}%` }}
-            />
           </div>
         </div>
       </div>
 
       {/* フィルターチップ */}
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-1.5">
         {/* 1行目: ステータス + 必須のみ */}
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
@@ -475,7 +472,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
       </div>
 
       {/* カテゴリ別アコーディオン */}
-      <div className="mt-6 space-y-4">
+      <div className="mt-4 space-y-3">
         {filteredCategories.map((cat) => {
           const catStat = categoryStats[cat.id]
           const isOpen = openCategories[cat.id] ?? true
@@ -521,7 +518,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
 
               {/* アイテム一覧 */}
               {isOpen && (
-                <div className="border-t border-primary-light/15">
+                <div className="border-t border-primary-light/15 grid grid-cols-1 lg:grid-cols-2">
                   {cat.shopping_items?.map((item) => (
                     <ItemCard
                       key={item.id}
@@ -545,7 +542,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
                       setItemForm({ name: '', priority: 'must' })
                       setAddItemModal({ categoryId: cat.id })
                     }}
-                    className="w-full px-4 py-3 flex items-center gap-2 text-xs text-text-sub hover:text-primary hover:bg-primary-light/10 transition-colors"
+                    className="w-full lg:col-span-2 px-4 py-3 flex items-center gap-2 text-xs text-text-sub hover:text-primary hover:bg-primary-light/10 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -859,7 +856,7 @@ function ItemCard({
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
 
   return (
-    <div className="px-4 py-3 border-b border-primary-light/10 last:border-b-0 transition-all duration-300"
+    <div className="px-4 py-3 border-b border-primary-light/10 lg:border-b lg:border-r lg:border-primary-light/10 transition-all duration-300"
          style={{ animation: 'fade-slide-up 0.3s ease-out' }}
     >
       {/* 上段: ステータス・アイテム名・優先度 */}

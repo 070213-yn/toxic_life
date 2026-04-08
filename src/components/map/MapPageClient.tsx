@@ -101,14 +101,16 @@ export default function MapPageClient({ areas, homeLocations, customMarkers }: P
           homePlacing={homePlacing}
           onHomePlaced={handleHomePlaced}
         />
-        <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+        {/* ボタン群: モバイルでは検索ボックスと被らないよう下に配置 */}
+        <div className="absolute top-16 right-2 md:top-4 md:right-4 z-[1000] flex gap-2">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden flex items-center gap-1.5 px-2.5 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-xs text-text hover:bg-bg-card transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
             一覧
           </button>
-          <button onClick={() => setShowHomeModal(true)} className="flex items-center gap-2 px-3 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-sm text-text hover:bg-bg-card transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-            実家を設定
+          <button onClick={() => setShowHomeModal(true)} className="flex items-center gap-1.5 px-2.5 py-2 bg-bg-card/90 backdrop-blur-sm rounded-xl shadow-md border border-primary-light/30 text-xs md:text-sm text-text hover:bg-bg-card transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+            <span className="hidden sm:inline">実家を設定</span>
+            <span className="sm:hidden">実家</span>
           </button>
         </div>
       </div>
