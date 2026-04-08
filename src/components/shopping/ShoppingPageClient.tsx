@@ -562,6 +562,7 @@ export default function ShoppingPageClient({ categories: initialCategories }: Pr
                       onDeleteCandidate={deleteCandidate}
                       onEdit={openEditItem}
                       onDelete={deleteItem}
+                      refreshData={refreshData}
                     />
                   ))}
 
@@ -868,6 +869,7 @@ function ItemCard({
   onDeleteCandidate,
   onEdit,
   onDelete,
+  refreshData,
 }: {
   item: ShoppingItem
   onStatusChange: (id: string, status: string) => void
@@ -877,12 +879,16 @@ function ItemCard({
   onDeleteCandidate: (candidateId: string) => void
   onEdit: (item: ShoppingItem) => void
   onDelete: (itemId: string) => void
+  refreshData: () => void
 }) {
   const statusCfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.not_started
   const priorityCfg = PRIORITY_CONFIG[item.priority] ?? PRIORITY_CONFIG.must
   const [showActions, setShowActions] = useState(false)
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
+  // 候補編集用state
+  const [editingCandId, setEditingCandId] = useState<string | null>(null)
+  const [editCandForm, setEditCandForm] = useState({ product_name: '', price: '', url: '', memo: '' })
 
   return (
     <div className="px-4 py-3 border-b border-primary-light/10 lg:border-b lg:border-r lg:border-primary-light/10 transition-all duration-300"
@@ -1031,44 +1037,79 @@ function ItemCard({
                 )}
               </button>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-medium truncate ${cand.is_selected ? 'text-primary' : 'text-text'}`}>
-                    {cand.product_name}
-                  </span>
-                  {cand.price != null && (
-                    <span className={`shrink-0 text-xs font-medium ${cand.is_selected ? 'text-primary' : 'text-text-sub'}`}>
-                      {formatPrice(cand.price)}
+              {/* 表示モード / 編集モード */}
+              {editingCandId === cand.id ? (
+                <div className="flex-1 min-w-0 space-y-1.5 py-1">
+                  <input type="text" value={editCandForm.product_name} onChange={(e) => setEditCandForm(f => ({ ...f, product_name: e.target.value }))} placeholder="商品名" className="w-full px-2 py-1 rounded-lg border border-primary-light/40 bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" autoFocus />
+                  <div className="flex gap-1.5">
+                    <input type="text" value={editCandForm.price} onChange={(e) => setEditCandForm(f => ({ ...f, price: e.target.value }))} placeholder="価格" className="w-24 px-2 py-1 rounded-lg border border-primary-light/40 bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    <input type="text" value={editCandForm.url} onChange={(e) => setEditCandForm(f => ({ ...f, url: e.target.value }))} placeholder="URL" className="flex-1 px-2 py-1 rounded-lg border border-primary-light/40 bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <input type="text" value={editCandForm.memo} onChange={(e) => setEditCandForm(f => ({ ...f, memo: e.target.value }))} placeholder="メモ" className="w-full px-2 py-1 rounded-lg border border-primary-light/40 bg-white text-xs text-text focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <div className="flex gap-1.5 justify-end">
+                    <button onClick={() => setEditingCandId(null)} className="px-2 py-1 text-[10px] text-text-sub rounded-lg hover:bg-primary-light/20">キャンセル</button>
+                    <button onClick={async () => {
+                      await supabase.from('shopping_candidates').update({
+                        product_name: editCandForm.product_name.trim(),
+                        price: editCandForm.price ? parseInt(editCandForm.price) : null,
+                        url: editCandForm.url.trim() || null,
+                        memo: editCandForm.memo.trim() || null,
+                      }).eq('id', cand.id)
+                      setEditingCandId(null)
+                      refreshData()
+                    }} className="px-2 py-1 text-[10px] text-white bg-primary rounded-lg hover:bg-primary/90">保存</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 min-w-0 cursor-pointer" onDoubleClick={() => {
+                  setEditingCandId(cand.id)
+                  setEditCandForm({
+                    product_name: cand.product_name,
+                    price: cand.price != null ? String(cand.price) : '',
+                    url: cand.url || '',
+                    memo: cand.memo || '',
+                  })
+                }}>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-medium truncate ${cand.is_selected ? 'text-primary' : 'text-text'}`}>
+                      {cand.product_name}
                     </span>
+                    {cand.price != null && (
+                      <span className={`shrink-0 text-xs font-medium ${cand.is_selected ? 'text-primary' : 'text-text-sub'}`}>
+                        {formatPrice(cand.price)}
+                      </span>
+                    )}
+                  </div>
+                  {(cand.url || cand.memo) && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {cand.url && (
+                        <a href={cand.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline truncate max-w-[150px]" onClick={(e) => e.stopPropagation()}>リンク</a>
+                      )}
+                      {cand.memo && <span className="text-[10px] text-text-sub/60 truncate">{cand.memo}</span>}
+                    </div>
                   )}
                 </div>
-                {(cand.url || cand.memo) && (
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {cand.url && (
-                      <a
-                        href={cand.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-blue-400 hover:underline truncate max-w-[150px]"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        リンク
-                      </a>
-                    )}
-                    {cand.memo && <span className="text-[10px] text-text-sub/60 truncate">{cand.memo}</span>}
-                  </div>
-                )}
-              </div>
+              )}
 
-              {/* 候補削除 */}
-              <button
-                onClick={() => onDeleteCandidate(cand.id)}
-                className="shrink-0 p-1 text-text-sub/30 hover:text-accent transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              {/* 編集・削除ボタン */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                {editingCandId !== cand.id && (
+                  <button onClick={() => {
+                    setEditingCandId(cand.id)
+                    setEditCandForm({
+                      product_name: cand.product_name,
+                      price: cand.price != null ? String(cand.price) : '',
+                      url: cand.url || '',
+                      memo: cand.memo || '',
+                    })
+                  }} className="p-1 text-text-sub/30 hover:text-primary transition-colors" title="編集">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+                  </button>
+                )}
+                <button onClick={() => onDeleteCandidate(cand.id)} className="p-1 text-text-sub/30 hover:text-accent transition-colors" title="削除">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
