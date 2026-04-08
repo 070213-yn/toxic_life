@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Saving } from '@/lib/types'
 
 // リアルタイム監視対象テーブル（貯金ページ用）
 const REALTIME_TABLES = ['savings']
-import { SavingsChart } from './SavingsChart'
+// rechartsを遅延ロード（初期バンドルから除外）
+const SavingsChart = dynamic(() => import('./SavingsChart').then(m => ({ default: m.SavingsChart })), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-2xl bg-bg-card animate-pulse" />,
+})
 import { MonthlySummary } from './MonthlySummary'
 import { SavingsTable } from './SavingsTable'
 import { AddSavingForm } from './AddSavingForm'

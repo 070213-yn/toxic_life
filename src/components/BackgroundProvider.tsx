@@ -15,46 +15,44 @@ export default function BackgroundProvider() {
     document.body.style.backgroundPosition = ''
     document.body.style.backgroundRepeat = ''
 
-    // ユーザーIDを取得してユーザーごとのキャッシュを読む
-    const loadBg = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase/client')
-        const { data: { user } } = await supabase.auth.getUser()
-        const cacheKey = user ? `toxic-life-bg-${user.id}` : 'toxic-life-background'
-
-        // 1. localStorageから即座に取得
+    // まずlocalStorageから即座に読む（どのキーでも）
+    let foundCache = false
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith('toxic-life-bg-')) {
         try {
-          const cached = localStorage.getItem(cacheKey)
-          if (cached) {
-            const parsed = JSON.parse(cached)
-            if (parsed.url) setBgUrl(parsed.url)
-          }
+          const parsed = JSON.parse(localStorage.getItem(key) || '')
+          if (parsed.url) { setBgUrl(parsed.url); foundCache = true; break }
         } catch {}
-
-        // 2. Supabaseから最新設定を同期
-        if (user) {
-          const bgKey = `background_${user.id}`
-          const { data } = await supabase
-            .from('settings')
-            .select('*')
-            .eq('key', bgKey)
-            .single()
-
-          if (data?.value) {
-            const val = data.value as { url?: string }
-            if (val.url) {
-              setBgUrl(val.url)
-              localStorage.setItem(cacheKey, JSON.stringify(data.value))
-            }
-          }
-        }
-      } catch {
-        // DB取得失敗はデフォルトのまま
       }
     }
-    loadBg()
 
-    // 3. SettingsPanelからの変更イベント
+    // キャッシュがなければDBから取得（初回のみ）
+    if (!foundCache) {
+      const fetchBg = async () => {
+        try {
+          const { supabase } = await import('@/lib/supabase/client')
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data } = await supabase
+              .from('settings')
+              .select('value')
+              .eq('key', `background_${user.id}`)
+              .single()
+            if (data?.value) {
+              const val = data.value as { url?: string }
+              if (val.url) {
+                setBgUrl(val.url)
+                localStorage.setItem(`toxic-life-bg-${user.id}`, JSON.stringify(data.value))
+              }
+            }
+          }
+        } catch {}
+      }
+      fetchBg()
+    }
+
+    // SettingsPanelからの変更イベント
     const handleBgChange = (e: Event) => {
       const detail = (e as CustomEvent).detail as { url?: string }
       setBgUrl(detail?.url || DEFAULT_BG)

@@ -11,7 +11,11 @@ import type { ScoutingArea } from '@/lib/types'
 const REALTIME_TABLES = ['scouting_areas', 'scouting_photos', 'scouting_ratings', 'scouting_comments']
 import AreaCard from './AreaCard'
 import AddAreaModal from './AddAreaModal'
-import CompareView from './CompareView'
+import dynamic from 'next/dynamic'
+const CompareView = dynamic(() => import('./CompareView'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"><p className="text-white text-sm">読み込み中...</p></div>,
+})
 import EmptyState from '@/components/EmptyState'
 
 // 並び替えオプション
