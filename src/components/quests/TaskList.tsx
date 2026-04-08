@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskReactions } from '@/components/quests/TaskReactions'
-import { notifyDiscord } from '@/lib/discord'
+import { notifyDiscord, deleteDiscordMessage } from '@/lib/discord'
 import {
   DndContext,
   closestCenter,
@@ -142,6 +142,8 @@ export function TaskList({
 }: Props) {
   // 前回の完了数を記録（全タスク完了検知用）
   const prevCompletedRef = useRef(tasks.filter((t) => t.is_completed).length)
+  // Discord通知メッセージIDを保持（チェック解除時に削除するため）
+  const discordMsgMap = useRef(new Map<string, string>())
 
   // 全タスク完了を検知
   useEffect(() => {
@@ -175,11 +177,18 @@ export function TaskList({
         })
         .eq('id', task.id)
 
-      // タスク完了/取り消し時にDiscord通知（fire and forget）
+      // タスク完了時: Discord通知してメッセージIDを保存
       if (newCompleted) {
-        notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！\n[タスクを見る →](https://toxiclife.vercel.app/quests)`)
+        notifyDiscord(`✅ ${task.assignee}が「${task.title}」を完了しました！\n[タスクを見る →](https://toxiclife.vercel.app/quests)`).then((msgId) => {
+          if (msgId) discordMsgMap.current.set(task.id, msgId)
+        })
       } else {
-        notifyDiscord(`↩️ 「${task.title}」の完了を取り消しました`)
+        // チェック解除時: 完了メッセージを削除
+        const msgId = discordMsgMap.current.get(task.id)
+        if (msgId) {
+          deleteDiscordMessage(msgId)
+          discordMsgMap.current.delete(task.id)
+        }
       }
     },
     [onTaskUpdate]

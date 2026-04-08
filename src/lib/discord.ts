@@ -1,15 +1,27 @@
-// Discord通知を送信するヘルパー
-// 通知失敗はユーザー操作に影響させない（fire and forget）
-export function notifyDiscord(message: string, username?: string) {
+// Discord通知を送信するヘルパー（メッセージIDを返す）
+export async function notifyDiscord(message: string, username?: string): Promise<string | null> {
   try {
-    fetch('/api/discord', {
+    const res = await fetch('/api/discord', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, username }),
-    }).catch(() => {
-      // 通知失敗は握りつぶす
+    })
+    const data = await res.json()
+    return data.messageId || null
+  } catch {
+    return null
+  }
+}
+
+// Discord通知メッセージを削除するヘルパー
+export async function deleteDiscordMessage(messageId: string): Promise<void> {
+  try {
+    await fetch('/api/discord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', messageId }),
     })
   } catch {
-    // 通知失敗は握りつぶす
+    // 削除失敗は握りつぶす
   }
 }
