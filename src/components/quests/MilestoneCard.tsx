@@ -347,8 +347,23 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
 
             {/* ご褒美詳細一覧 + 管理ボタン */}
             <div className="mt-3 space-y-2">
-              {/* 登録済みご褒美一覧 */}
-              {rewardsList.map((reward) => (
+              {/* 登録済みご褒美一覧（相手の秘密で未公開のものは非表示） */}
+              {rewardsList.filter((reward) => {
+                // 自分が作成した → 常に表示
+                if (reward.created_by === user?.id) return true
+                // 秘密でない → 表示
+                if (!reward.is_secret) return true
+                // 秘密で公開済み → 表示
+                if (reward.is_revealed) return true
+                // 秘密で期限切れ → 表示
+                if (milestone.deadline) {
+                  const deadline = new Date(milestone.deadline)
+                  deadline.setHours(23, 59, 59, 999)
+                  if (new Date() > deadline) return true
+                }
+                // 相手の秘密で未公開 → 非表示
+                return false
+              }).map((reward) => (
                 <div
                   key={reward.id}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${
