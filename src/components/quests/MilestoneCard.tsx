@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Milestone, Profile, Task } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { TaskList } from './TaskList'
@@ -17,6 +18,7 @@ type Props = {
 // マイルストーンカード
 // 未完了は常に展開、完了済みは折りたたみ可能
 export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profiles }: Props) {
+  const router = useRouter()
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [tasks, setTasks] = useState<Task[]>(milestone.tasks ?? [])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -89,7 +91,8 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     setCurrentDeadline(editDeadline || null)
     setCurrentReward(editReward.trim() || null)
     setIsEditing(false)
-  }, [editTitle, editDeadline, editReward, milestone.id])
+    router.refresh()
+  }, [editTitle, editDeadline, editReward, milestone.id, router])
 
   // タスク更新コールバック
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
