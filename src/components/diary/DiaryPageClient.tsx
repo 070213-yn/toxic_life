@@ -459,101 +459,51 @@ function DiaryCardView({
   const displayName = entry.profiles?.display_name ?? '???'
 
   return (
-    <div className="bg-white">
+    <div className="bg-white border-2 border-gray-800">
+      {/* 上半分: 写真エリア（全幅） */}
+      <div className="border-b-2 border-gray-800 relative" style={{ aspectRatio: '16/10' }}>
+        {entry.photo_path ? (
+          <img src={getPhotoUrl(entry.photo_path)} alt="日記の写真" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gray-50" />
+        )}
+        {isOwner && (
+          <div className="absolute top-1.5 right-1.5 flex gap-1">
+            <button onClick={onEdit} className="p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors" title="編集">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A4458" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+            </button>
+            <button onClick={onDelete} disabled={isDeleting} className="p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50" title="削除">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 下半分: テキスト（縦書き） + 右サイドバー（がつ・にち・なまえ） */}
       <div className="flex">
-        {/* メインコンテンツ（写真＋テキスト） */}
-        <div className="flex-1 min-w-0">
-          {/* 写真エリア */}
-          <div
-            className="border-b-2 border-gray-200 relative"
-            style={{ aspectRatio: '16/10' }}
-          >
-            {entry.photo_path ? (
-              <img
-                src={getPhotoUrl(entry.photo_path)}
-                alt="日記の写真"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-50 flex items-center justify-center">
-                <span className="text-gray-300 text-sm font-[family-name:var(--font-zen-maru)]">
-                  写真なし
-                </span>
-              </div>
-            )}
-
-            {/* 自分の日記なら編集・削除ボタン */}
-            {isOwner && (
-              <div className="absolute top-1.5 right-1.5 flex gap-1">
-                <button
-                  onClick={onEdit}
-                  className="p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
-                  title="編集"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#4A4458"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                    <path d="m15 5 4 4" />
-                  </svg>
-                </button>
-                <button
-                  onClick={onDelete}
-                  disabled={isDeleting}
-                  className="p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                  title="削除"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* テキストエリア（縦書き表示） */}
-          <div
-            className="p-3 font-[family-name:var(--font-zen-maru)] overflow-x-auto"
-            style={{
-              writingMode: 'vertical-rl',
-              textOrientation: 'mixed',
-              minHeight: '200px',
-              backgroundImage:
-                'repeating-linear-gradient(90deg, transparent, transparent calc(1.5em - 1px), #eee calc(1.5em - 1px), #eee 1.5em)',
-            }}
-          >
-            <p className="text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">
-              {entry.content}
-            </p>
-          </div>
+        {/* テキスト（縦書き+点線罫線） */}
+        <div
+          className="flex-1 min-w-0 p-4 font-[family-name:var(--font-zen-maru)] overflow-x-auto"
+          style={{
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            minHeight: '220px',
+            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent calc(1.8em - 1px), dotted calc(1.8em - 1px))',
+            backgroundSize: '1.8em 4px',
+          }}
+        >
+          <p className="text-sm leading-loose text-gray-800 whitespace-pre-wrap">{entry.content}</p>
         </div>
 
-        {/* 右サイドバー（日付・名前） */}
-        <div className="w-10 border-l-2 border-gray-200 flex flex-col items-center py-2 shrink-0 bg-white overflow-hidden">
-          <span className="text-xl font-bold text-gray-800">{month}</span>
-          <span className="text-[9px] text-gray-500">がつ</span>
-          <span className="text-xl font-bold text-gray-800 mt-1">{day}</span>
-          <span className="text-[9px] text-gray-500">にち</span>
-          <div className="mt-auto text-center">
-            <span className="text-[8px] text-gray-400 block">なまえ</span>
-            <span className="text-[10px] text-gray-700 font-medium block">{displayName}</span>
+        {/* 右サイドバー（縦書き: がつ にち なまえ） */}
+        <div
+          className="w-12 border-l-2 border-gray-800 shrink-0 py-4 px-1"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
+        >
+          <div className="flex flex-col items-center h-full">
+            <span className="text-lg font-bold text-gray-800 tracking-widest">がつ</span>
+            <span className="text-lg font-bold text-gray-800 tracking-widest mt-4">にち</span>
+            <span className="text-lg font-bold text-gray-800 tracking-widest mt-auto">なまえ</span>
           </div>
         </div>
       </div>
@@ -717,16 +667,13 @@ function DiaryCardEditable({
   ])
 
   return (
-    <div className="bg-white">
-      <div className="flex">
-        {/* メインコンテンツ */}
-        <div className="flex-1 min-w-0">
-          {/* 写真エリア（クリックで写真選択） */}
-          <div
-            className="border-b-2 border-gray-200 relative cursor-pointer group"
-            style={{ aspectRatio: '16/10' }}
-            onClick={() => fileInputRef.current?.click()}
-          >
+    <div className="bg-white border-2 border-gray-800">
+      {/* 上半分: 写真エリア（全幅、クリックで選択） */}
+      <div
+        className="border-b-2 border-gray-800 relative cursor-pointer group"
+        style={{ aspectRatio: '16/10' }}
+        onClick={() => fileInputRef.current?.click()}
+      >
             {collagePreview ? (
               <>
                 <img
@@ -771,7 +718,10 @@ function DiaryCardEditable({
             />
           </div>
 
-          {/* テキスト入力エリア */}
+      {/* 下半分: テキスト入力 + 右サイドバー */}
+      <div className="flex">
+        {/* テキスト入力+保存ボタン */}
+        <div className="flex-1 min-w-0">
           <div className="p-3">
             <textarea
               value={formContent}
@@ -780,49 +730,39 @@ function DiaryCardEditable({
               rows={6}
               className="w-full px-2 py-1.5 text-sm text-gray-800 bg-transparent border-none resize-none focus:outline-none font-[family-name:var(--font-zen-maru)] leading-relaxed"
               style={{
-                backgroundImage:
-                  'repeating-linear-gradient(180deg, transparent, transparent calc(1.8em - 1px), #e5e5e5 calc(1.8em - 1px), #e5e5e5 1.8em)',
+                backgroundImage: 'repeating-linear-gradient(180deg, transparent, transparent calc(1.8em - 1px), #e5e5e5 calc(1.8em - 1px), #e5e5e5 1.8em)',
                 backgroundPosition: '0 0.4em',
               }}
             />
           </div>
-
-          {/* 保存ボタン */}
           <div className="px-3 pb-3 flex gap-2">
             {mode === 'edit' && onCancel && (
-              <button
-                onClick={onCancel}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-text-sub hover:bg-gray-50 transition-colors font-[family-name:var(--font-zen-maru)]"
-              >
-                キャンセル
-              </button>
+              <button onClick={onCancel} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-text-sub hover:bg-gray-50 transition-colors font-[family-name:var(--font-zen-maru)]">キャンセル</button>
             )}
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !formContent.trim()}
-              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 font-[family-name:var(--font-zen-maru)]"
-            >
+            <button onClick={handleSave} disabled={isSaving || !formContent.trim()} className="flex-1 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 font-[family-name:var(--font-zen-maru)]">
               {isSaving ? '保存中...' : '保存する'}
             </button>
           </div>
         </div>
 
-        {/* 右サイドバー（日付・名前） */}
-        <div className="w-10 border-l-2 border-gray-200 flex flex-col items-center py-2 shrink-0 bg-white overflow-hidden">
-          <span className="text-xl font-bold text-gray-800">{month}</span>
-          <span className="text-[9px] text-gray-500">がつ</span>
-          <span className="text-xl font-bold text-gray-800 mt-1">{day}</span>
-          <span className="text-[9px] text-gray-500">にち</span>
-          {/* 日付変更 */}
-          <input
-            type="date"
-            value={formDate}
-            onChange={(e) => setFormDate(e.target.value)}
-            className="w-8 mt-1 text-[8px] text-gray-400 bg-transparent border-none cursor-pointer p-0"
-          />
-          <div className="mt-auto text-center">
-            <span className="text-[8px] text-gray-400 block">なまえ</span>
-            <span className="text-[10px] text-gray-700 font-medium block">{displayName ?? '---'}</span>
+        {/* 右サイドバー（縦書き: がつ にち なまえ） */}
+        <div
+          className="w-12 border-l-2 border-gray-800 shrink-0 py-3 px-1"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
+        >
+          <div className="flex flex-col items-center h-full text-base font-bold text-gray-800 font-[family-name:var(--font-zen-maru)]">
+            <span>{month}</span>
+            <span className="text-sm mt-0.5">がつ</span>
+            <span className="mt-3">{day}</span>
+            <span className="text-sm mt-0.5">にち</span>
+            <div className="mt-auto">
+              <span className="text-sm">なまえ</span>
+              <span className="mt-1 block">{displayName ?? '---'}</span>
+            </div>
+          </div>
+          {/* 日付変更（小さく） */}
+          <div style={{ writingMode: 'horizontal-tb' }} className="mt-1">
+            <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="w-full text-[7px] text-gray-400 bg-transparent border-none cursor-pointer p-0" />
           </div>
         </div>
       </div>
