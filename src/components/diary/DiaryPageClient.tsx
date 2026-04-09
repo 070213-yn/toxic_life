@@ -546,33 +546,14 @@ function DiaryCardView({
         </div>
 
         {/* 右サイドバー（日付・名前） */}
-        <div
-          className="w-12 border-l-2 border-gray-200 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
-          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-        >
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-2xl font-bold text-gray-800 font-[family-name:var(--font-dm-sans)]">
-              {month}
-            </span>
-            <span className="text-xs text-gray-600 font-[family-name:var(--font-zen-maru)]">
-              がつ
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-0.5 mt-2">
-            <span className="text-2xl font-bold text-gray-800 font-[family-name:var(--font-dm-sans)]">
-              {day}
-            </span>
-            <span className="text-xs text-gray-600 font-[family-name:var(--font-zen-maru)]">
-              にち
-            </span>
-          </div>
-          <div className="mt-auto flex flex-col items-center gap-0.5">
-            <span className="text-[10px] text-gray-500 font-[family-name:var(--font-zen-maru)]">
-              なまえ
-            </span>
-            <span className="text-xs text-gray-700 font-[family-name:var(--font-zen-maru)] font-medium">
-              {displayName}
-            </span>
+        <div className="w-10 border-l-2 border-gray-200 flex flex-col items-center py-2 shrink-0 bg-white overflow-hidden">
+          <span className="text-xl font-bold text-gray-800">{month}</span>
+          <span className="text-[9px] text-gray-500">がつ</span>
+          <span className="text-xl font-bold text-gray-800 mt-1">{day}</span>
+          <span className="text-[9px] text-gray-500">にち</span>
+          <div className="mt-auto text-center">
+            <span className="text-[8px] text-gray-400 block">なまえ</span>
+            <span className="text-[10px] text-gray-700 font-medium block">{displayName}</span>
           </div>
         </div>
       </div>
@@ -827,49 +808,21 @@ function DiaryCardEditable({
         </div>
 
         {/* 右サイドバー（日付・名前） */}
-        <div
-          className="w-14 border-l-2 border-gray-200 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
-          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-        >
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-2xl font-bold text-gray-800 font-[family-name:var(--font-dm-sans)]">
-              {month}
-            </span>
-            <span className="text-xs text-gray-600 font-[family-name:var(--font-zen-maru)]">
-              がつ
-            </span>
-          </div>
-          <div className="flex flex-col items-center gap-0.5 mt-2">
-            <span className="text-2xl font-bold text-gray-800 font-[family-name:var(--font-dm-sans)]">
-              {day}
-            </span>
-            <span className="text-xs text-gray-600 font-[family-name:var(--font-zen-maru)]">
-              にち
-            </span>
-          </div>
-
-          {/* 日付変更用input */}
-          <div
-            className="mt-1 flex items-center justify-center"
-            style={{ writingMode: 'horizontal-tb' }}
-          >
-            <input
-              type="date"
-              value={formDate}
-              onChange={(e) => setFormDate(e.target.value)}
-              className="w-10 h-6 text-[9px] text-center text-gray-500 bg-gray-50 border border-gray-200 rounded cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
-              title="日付を変更"
-            />
-          </div>
-
-          {/* 名前 */}
-          <div className="mt-auto flex flex-col items-center gap-0.5">
-            <span className="text-[10px] text-gray-500 font-[family-name:var(--font-zen-maru)]">
-              なまえ
-            </span>
-            <span className="text-xs text-gray-700 font-[family-name:var(--font-zen-maru)] font-medium">
-              {displayName ?? '---'}
-            </span>
+        <div className="w-10 border-l-2 border-gray-200 flex flex-col items-center py-2 shrink-0 bg-white overflow-hidden">
+          <span className="text-xl font-bold text-gray-800">{month}</span>
+          <span className="text-[9px] text-gray-500">がつ</span>
+          <span className="text-xl font-bold text-gray-800 mt-1">{day}</span>
+          <span className="text-[9px] text-gray-500">にち</span>
+          {/* 日付変更 */}
+          <input
+            type="date"
+            value={formDate}
+            onChange={(e) => setFormDate(e.target.value)}
+            className="w-8 mt-1 text-[8px] text-gray-400 bg-transparent border-none cursor-pointer p-0"
+          />
+          <div className="mt-auto text-center">
+            <span className="text-[8px] text-gray-400 block">なまえ</span>
+            <span className="text-[10px] text-gray-700 font-medium block">{displayName ?? '---'}</span>
           </div>
         </div>
       </div>
