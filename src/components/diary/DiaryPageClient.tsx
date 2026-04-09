@@ -50,13 +50,11 @@ async function createCollage(files: File[]): Promise<Blob> {
   const ctx = canvas.getContext('2d')!
 
   if (images.length === 1) {
-    // 1枚: リサイズのみ
     const ratio = Math.min(maxWidth / images[0].width, 1)
     canvas.width = images[0].width * ratio
     canvas.height = images[0].height * ratio
     ctx.drawImage(images[0], 0, 0, canvas.width, canvas.height)
   } else if (images.length === 2) {
-    // 2枚横並び
     const halfW = maxWidth / 2
     const maxH = Math.max(
       ...images.map((img) => (halfW / img.width) * img.height)
@@ -68,7 +66,6 @@ async function createCollage(files: File[]): Promise<Blob> {
       ctx.drawImage(img, i * halfW, 0, halfW, h)
     })
   } else if (images.length === 3) {
-    // 上1枚大 + 下2枚小
     const topH = (maxWidth / images[0].width) * images[0].height
     const halfW = maxWidth / 2
     const bottomH = Math.max(
@@ -81,14 +78,12 @@ async function createCollage(files: File[]): Promise<Blob> {
     ctx.drawImage(images[1], 0, topH, halfW, bottomH)
     ctx.drawImage(images[2], halfW, topH, halfW, bottomH)
   } else {
-    // 4枚以上: 2列グリッド
     const cols = 2
     const cellW = maxWidth / cols
     const rows = Math.ceil(images.length / cols)
-    const cellH = cellW * 0.75 // 4:3比
+    const cellH = cellW * 0.75
     canvas.width = maxWidth
     canvas.height = cellH * rows
-    // 背景を白で塗りつぶし（隙間対策）
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     images.forEach((img, i) => {
@@ -98,25 +93,21 @@ async function createCollage(files: File[]): Promise<Blob> {
     })
   }
 
-  // ObjectURLを解放
   images.forEach((img) => URL.revokeObjectURL(img.src))
 
-  // JPEG圧縮（品質80%）
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.8)
   })
 }
 
-// ========================================
 // コラージュプレビューをURLとして生成
-// ========================================
 async function createCollagePreview(files: File[]): Promise<string> {
   const blob = await createCollage(files)
   return URL.createObjectURL(blob)
 }
 
 // ========================================
-// メインコンポーネント
+// メインコンポーネント（ノートブック風UI）
 // ========================================
 type Props = {
   entries: DiaryEntry[]
@@ -125,23 +116,59 @@ type Props = {
 export default function DiaryPageClient({ entries: initialEntries }: Props) {
   const { user, profile } = useAuth()
   const [entries, setEntries] = useState<DiaryEntry[]>(initialEntries)
+
+  // ノートブックのステート
+  const [showCover, setShowCover] = useState(true) // 表紙表示中か
+  const [coverOpening, setCoverOpening] = useState(false) // 表紙が開くアニメ中か
+  const [currentPage, setCurrentPage] = useState(0) // 0=今日, 1〜=過去（新しい順）
+  const [turning, setTurning] = useState<'next' | 'prev' | null>(null) // めくりアニメ中
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // 既存エントリを編集モードにする
-  const startEdit = useCallback((entryId: string) => {
-    setEditingId(entryId)
+  // 今日の日記があるかチェック
+  const todayStr = getTodayStr()
+  const todayEntry = entries.find((e) => e.entry_date === todayStr)
+  // 過去の日記（今日以外、新しい順）
+  const pastEntries = entries.filter((e) => e.entry_date !== todayStr)
+  // 全ページ数: 1（今日のページ） + 過去の日記数
+  const totalPages = 1 + pastEntries.length
+
+  // 表紙を開く
+  const openCover = useCallback(() => {
+    setCoverOpening(true)
+    // アニメーション完了後にページを表示
+    setTimeout(() => {
+      setShowCover(false)
+      setCoverOpening(false)
+    }, 800)
   }, [])
 
-  // 編集モードを終了
-  const cancelEdit = useCallback(() => {
-    setEditingId(null)
-  }, [])
+  // 次のページへ
+  const goNext = useCallback(() => {
+    if (turning !== null || currentPage >= totalPages - 1) return
+    setTurning('next')
+    setTimeout(() => {
+      setCurrentPage((prev) => prev + 1)
+      setTurning(null)
+      setEditingId(null)
+    }, 700)
+  }, [turning, currentPage, totalPages])
+
+  // 前のページへ
+  const goPrev = useCallback(() => {
+    if (turning !== null || currentPage <= 0) return
+    setTurning('prev')
+    setTimeout(() => {
+      setCurrentPage((prev) => prev - 1)
+      setTurning(null)
+      setEditingId(null)
+    }, 700)
+  }, [turning, currentPage])
 
   // 新規エントリ保存後のコールバック
   const handleNewEntrySaved = useCallback((newEntry: DiaryEntry) => {
     setEntries((prev) =>
-      [newEntry, ...prev].sort((a, b) =>
+      [newEntry, ...prev.filter((e) => e.id !== newEntry.id)].sort((a, b) =>
         b.entry_date.localeCompare(a.entry_date)
       )
     )
@@ -177,59 +204,242 @@ export default function DiaryPageClient({ entries: initialEntries }: Props) {
     setDeletingId(null)
   }, [])
 
-  return (
-    <div className="px-4 pb-28 md:pb-8">
-      {/* 新規入力カード（常にページ上部に表示） */}
-      <div className="max-w-2xl mx-auto mb-8">
+  // 現在のページに表示するコンテンツを決定
+  const renderCurrentPage = () => {
+    if (currentPage === 0) {
+      // 今日のページ: 既存の今日の日記があれば編集可能表示、なければ新規入力
+      if (todayEntry && editingId !== todayEntry.id) {
+        return (
+          <DiaryCardView
+            entry={todayEntry}
+            currentUserId={user?.id ?? null}
+            onEdit={() => setEditingId(todayEntry.id)}
+            onDelete={() => handleDelete(todayEntry.id)}
+            isDeleting={deletingId === todayEntry.id}
+          />
+        )
+      }
+      // 今日の日記を編集中、または新規作成
+      return (
         <DiaryCardEditable
-          mode="create"
+          mode={todayEntry ? 'edit' : 'create'}
+          entry={todayEntry}
           userId={user?.id ?? null}
           displayName={profile?.display_name ?? null}
-          onSaved={handleNewEntrySaved}
+          onSaved={todayEntry ? handleEntryUpdated : handleNewEntrySaved}
+          onCancel={todayEntry ? () => setEditingId(null) : undefined}
         />
-      </div>
+      )
+    }
 
-      {/* 日記一覧 */}
-      {entries.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-text-sub text-sm">
-            まだ日記がありません。上のカードから最初の日記を書いてみよう
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {entries.map((entry) =>
-            editingId === entry.id ? (
-              <DiaryCardEditable
-                key={entry.id}
-                mode="edit"
-                entry={entry}
-                userId={user?.id ?? null}
-                displayName={
-                  entry.profiles?.display_name ?? profile?.display_name ?? null
-                }
-                onSaved={handleEntryUpdated}
-                onCancel={cancelEdit}
-              />
-            ) : (
-              <DiaryCardView
-                key={entry.id}
-                entry={entry}
-                currentUserId={user?.id ?? null}
-                onEdit={() => startEdit(entry.id)}
-                onDelete={() => handleDelete(entry.id)}
-                isDeleting={deletingId === entry.id}
-              />
-            )
+    // 過去のページ
+    const pastIndex = currentPage - 1
+    const entry = pastEntries[pastIndex]
+    if (!entry) return null
+
+    if (editingId === entry.id) {
+      return (
+        <DiaryCardEditable
+          mode="edit"
+          entry={entry}
+          userId={user?.id ?? null}
+          displayName={
+            entry.profiles?.display_name ?? profile?.display_name ?? null
+          }
+          onSaved={handleEntryUpdated}
+          onCancel={() => setEditingId(null)}
+        />
+      )
+    }
+
+    return (
+      <DiaryCardView
+        entry={entry}
+        currentUserId={user?.id ?? null}
+        onEdit={() => setEditingId(entry.id)}
+        onDelete={() => handleDelete(entry.id)}
+        isDeleting={deletingId === entry.id}
+      />
+    )
+  }
+
+  return (
+    <div className="px-4 pb-28 md:pb-8 flex justify-center">
+      <div className="w-full max-w-2xl">
+        {/* ノートブックコンテナ */}
+        <div className="notebook-container">
+          {/* === 表紙 === */}
+          {showCover && (
+            <div
+              onClick={!coverOpening ? openCover : undefined}
+              className={`
+                relative cursor-pointer select-none
+                min-h-[600px] rounded-xl shadow-xl overflow-hidden
+                bg-gradient-to-br from-primary-light to-accent/30
+                border-2 border-primary/20
+                transition-all duration-300
+                ${coverOpening ? 'cover-opening' : 'hover:shadow-2xl hover:scale-[1.01]'}
+              `}
+              style={{
+                transformStyle: 'preserve-3d',
+                backfaceVisibility: 'hidden',
+              }}
+            >
+              {/* ステッチライン（左端の装飾） */}
+              <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col items-center justify-center">
+                <div
+                  className="w-[2px] h-full"
+                  style={{
+                    backgroundImage:
+                      'repeating-linear-gradient(180deg, #e07a7a 0px, #e07a7a 8px, transparent 8px, transparent 16px)',
+                  }}
+                />
+              </div>
+              <div className="absolute left-6 top-0 bottom-0 w-[1px] bg-red-300/40" />
+
+              {/* 表紙のコンテンツ */}
+              <div className="flex flex-col items-center justify-center min-h-[600px] pl-10 pr-6">
+                {/* ノートアイコン */}
+                <div className="text-6xl mb-6 opacity-80">
+                  <svg
+                    width="64"
+                    height="64"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-text/60"
+                  >
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                    <path d="M8 7h6" />
+                    <path d="M8 11h8" />
+                  </svg>
+                </div>
+
+                {/* タイトル */}
+                <h1
+                  className="text-3xl md:text-4xl font-bold text-text/80 mb-3 font-[family-name:var(--font-zen-maru)]"
+                  style={{
+                    textShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  ふたりの日記
+                </h1>
+
+                {/* サブテキスト */}
+                <p className="text-sm text-text-sub/70 mb-8 font-[family-name:var(--font-zen-maru)]">
+                  {entries.length > 0
+                    ? `${entries.length} ページの思い出`
+                    : 'はじめての1ページを書こう'}
+                </p>
+
+                {/* タップして開く */}
+                <p className="text-xs text-text-sub cover-pulse font-[family-name:var(--font-zen-maru)]">
+                  タップして開く
+                </p>
+              </div>
+
+              {/* 表紙の角の装飾 */}
+              <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-primary/20 rounded-tr-lg" />
+              <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-primary/20 rounded-br-lg" />
+            </div>
+          )}
+
+          {/* === ノート本体（表紙が開いた後に表示） === */}
+          {!showCover && (
+            <div
+              className="page-fade-in relative min-h-[600px] rounded-xl shadow-xl overflow-hidden bg-bg-card border border-primary/10"
+            >
+              {/* ステッチライン（左端の装飾） */}
+              <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none flex flex-col items-center justify-center">
+                <div
+                  className="w-[2px] h-full"
+                  style={{
+                    backgroundImage:
+                      'repeating-linear-gradient(180deg, #e07a7a 0px, #e07a7a 8px, transparent 8px, transparent 16px)',
+                  }}
+                />
+              </div>
+              <div className="absolute left-6 top-0 bottom-0 w-[1px] bg-red-300/20 z-10 pointer-events-none" />
+
+              {/* ページコンテンツ */}
+              <div className="pl-10 pr-0">
+                <div
+                  className={`
+                    page-content
+                    ${turning === 'next' ? 'page-turn-next' : ''}
+                    ${turning === 'prev' ? 'page-turn-prev' : ''}
+                  `}
+                  style={{
+                    transformStyle: 'preserve-3d',
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  {renderCurrentPage()}
+                </div>
+              </div>
+
+              {/* ページナビゲーション（下部） */}
+              <div className="sticky bottom-0 left-0 right-0 bg-bg-card/95 backdrop-blur-sm border-t border-primary/10 px-4 py-3 flex items-center justify-between z-20">
+                {/* 前のページボタン */}
+                <button
+                  onClick={goPrev}
+                  disabled={currentPage <= 0 || turning !== null}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text-sub hover:bg-primary-light/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-[family-name:var(--font-zen-maru)]"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  もどる
+                </button>
+
+                {/* ページ番号 */}
+                <span className="text-xs text-text-sub font-[family-name:var(--font-dm-sans)]">
+                  {currentPage + 1} / {totalPages}
+                </span>
+
+                {/* 次のページボタン */}
+                <button
+                  onClick={goNext}
+                  disabled={currentPage >= totalPages - 1 || turning !== null}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text-sub hover:bg-primary-light/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-[family-name:var(--font-zen-maru)]"
+                >
+                  すすむ
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
 // ========================================
-// 閲覧モードの絵日記カード
+// 閲覧モードの絵日記カード（ノートのページ内に表示）
 // ========================================
 function DiaryCardView({
   entry,
@@ -249,16 +459,13 @@ function DiaryCardView({
   const displayName = entry.profiles?.display_name ?? '???'
 
   return (
-    <div
-      className="diary-card bg-white border-2 border-gray-800 overflow-hidden"
-      style={{ animation: 'fade-slide-up 0.3s ease-out' }}
-    >
+    <div className="bg-white">
       <div className="flex">
         {/* メインコンテンツ（写真＋テキスト） */}
         <div className="flex-1 min-w-0">
           {/* 写真エリア */}
           <div
-            className="border-b-2 border-gray-800 relative"
+            className="border-b-2 border-gray-200 relative"
             style={{ aspectRatio: '16/10' }}
           >
             {entry.photo_path ? (
@@ -268,8 +475,10 @@ function DiaryCardView({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                <span className="text-gray-400 text-sm">写真なし</span>
+              <div className="w-full h-full bg-gray-50 flex items-center justify-center">
+                <span className="text-gray-300 text-sm font-[family-name:var(--font-zen-maru)]">
+                  写真なし
+                </span>
               </div>
             )}
 
@@ -327,7 +536,7 @@ function DiaryCardView({
               textOrientation: 'mixed',
               minHeight: '200px',
               backgroundImage:
-                'repeating-linear-gradient(90deg, transparent, transparent calc(1.5em - 1px), #ddd calc(1.5em - 1px), #ddd 1.5em)',
+                'repeating-linear-gradient(90deg, transparent, transparent calc(1.5em - 1px), #eee calc(1.5em - 1px), #eee 1.5em)',
             }}
           >
             <p className="text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">
@@ -338,7 +547,7 @@ function DiaryCardView({
 
         {/* 右サイドバー（日付・名前） */}
         <div
-          className="w-12 border-l-2 border-gray-800 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
+          className="w-12 border-l-2 border-gray-200 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
           <div className="flex flex-col items-center gap-0.5">
@@ -396,13 +605,11 @@ function DiaryCardEditable({
   const [formContent, setFormContent] = useState(entry?.content ?? '')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [collagePreview, setCollagePreview] = useState<string | null>(
-    // 編集モードで既存写真がある場合はそのURLをプレビューに
     entry?.photo_path ? getPhotoUrl(entry.photo_path) : null
   )
   const [isSaving, setIsSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 日付から月・日を取得（右サイドバー表示用）
   const { month, day } = parseDateParts(formDate || getTodayStr())
 
   // 写真選択ハンドラー（複数対応）
@@ -414,10 +621,8 @@ function DiaryCardEditable({
       const fileArray = Array.from(files)
       setSelectedFiles(fileArray)
 
-      // コラージュプレビューを生成
       try {
         const previewUrl = await createCollagePreview(fileArray)
-        // 古いプレビューURLがあれば解放（既存写真URLは解放しない）
         if (collagePreview && !entry?.photo_path) {
           URL.revokeObjectURL(collagePreview)
         }
@@ -426,7 +631,6 @@ function DiaryCardEditable({
         alert('写真の読み込みに失敗しました')
       }
 
-      // inputをリセット（同じファイルを再選択できるように）
       e.target.value = ''
     },
     [collagePreview, entry?.photo_path]
@@ -440,7 +644,6 @@ function DiaryCardEditable({
     try {
       let photoPath: string | null = entry?.photo_path ?? null
 
-      // 新しい写真がある場合はコラージュしてアップロード
       if (selectedFiles.length > 0) {
         const collageBlob = await createCollage(selectedFiles)
         const entryId = entry?.id ?? crypto.randomUUID()
@@ -462,7 +665,6 @@ function DiaryCardEditable({
       }
 
       if (mode === 'edit' && entry) {
-        // 更新
         const { data, error } = await supabase
           .from('diary_entries')
           .update({
@@ -482,7 +684,6 @@ function DiaryCardEditable({
 
         onSaved(data as DiaryEntry)
       } else {
-        // 新規作成
         const { data, error } = await supabase
           .from('diary_entries')
           .insert({
@@ -514,7 +715,7 @@ function DiaryCardEditable({
         // Discord通知
         const name = profile?.display_name ?? 'だれか'
         notifyDiscord(
-          `📝 ${name}が日記を書きました！\n[日記を見る →](https://toxiclife.vercel.app/diary)`
+          `${name}が日記を書きました！\n[日記を見る](https://toxiclife.vercel.app/diary)`
         )
       }
     } catch {
@@ -535,16 +736,13 @@ function DiaryCardEditable({
   ])
 
   return (
-    <div
-      className="diary-card bg-white border-2 border-gray-800 overflow-hidden"
-      style={{ animation: 'fade-slide-up 0.3s ease-out' }}
-    >
+    <div className="bg-white">
       <div className="flex">
         {/* メインコンテンツ */}
         <div className="flex-1 min-w-0">
           {/* 写真エリア（クリックで写真選択） */}
           <div
-            className="border-b-2 border-gray-800 relative cursor-pointer group"
+            className="border-b-2 border-gray-200 relative cursor-pointer group"
             style={{ aspectRatio: '16/10' }}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -555,7 +753,6 @@ function DiaryCardEditable({
                   alt="コラージュプレビュー"
                   className="w-full h-full object-cover"
                 />
-                {/* 写真変更のオーバーレイ */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                   <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 px-3 py-1.5 rounded-lg">
                     写真を変更
@@ -578,7 +775,9 @@ function DiaryCardEditable({
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-                <span className="text-sm">+ 写真を選択（複数可）</span>
+                <span className="text-sm font-[family-name:var(--font-zen-maru)]">
+                  + 写真を選択（複数可）
+                </span>
               </div>
             )}
             <input
@@ -591,7 +790,7 @@ function DiaryCardEditable({
             />
           </div>
 
-          {/* テキスト入力エリア（横書きで入力） */}
+          {/* テキスト入力エリア */}
           <div className="p-3">
             <textarea
               value={formContent}
@@ -629,10 +828,9 @@ function DiaryCardEditable({
 
         {/* 右サイドバー（日付・名前） */}
         <div
-          className="w-14 border-l-2 border-gray-800 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
+          className="w-14 border-l-2 border-gray-200 flex flex-col items-center py-3 gap-1 shrink-0 bg-white"
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
-          {/* 日付入力 */}
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-2xl font-bold text-gray-800 font-[family-name:var(--font-dm-sans)]">
               {month}
@@ -650,8 +848,11 @@ function DiaryCardEditable({
             </span>
           </div>
 
-          {/* 小さなdate input（日付変更用） */}
-          <div className="mt-1 flex items-center justify-center" style={{ writingMode: 'horizontal-tb' }}>
+          {/* 日付変更用input */}
+          <div
+            className="mt-1 flex items-center justify-center"
+            style={{ writingMode: 'horizontal-tb' }}
+          >
             <input
               type="date"
               value={formDate}

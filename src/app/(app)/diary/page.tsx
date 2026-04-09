@@ -28,15 +28,8 @@ export default async function DiaryPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* ヘッダー */}
-      <div className="px-4 pt-8 pb-4 text-center">
-        <h1 className="font-[family-name:var(--font-quicksand)] text-2xl font-bold text-text">
-          Diary
-        </h1>
-      </div>
-
-      {/* クライアントコンポーネント */}
+    <div className="min-h-screen pt-6">
+      {/* クライアントコンポーネント（ノートブック風UI） */}
       <DiaryPageClient entries={(entries ?? []) as DiaryEntry[]} />
     </div>
   )
