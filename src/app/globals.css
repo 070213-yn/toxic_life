@@ -144,6 +144,18 @@ body {
   animation-delay: 7.5s;
 }
 
+/* 印刷対応 */
+@media print {
+  /* ナビとフッターを非表示 */
+  nav, aside, .safe-area-bottom { display: none !important; }
+  /* 背景画像非表示 */
+  .fixed.z-0 { display: none !important; }
+  /* メインコンテンツの余白調整 */
+  main { margin-left: 0 !important; padding-bottom: 0 !important; }
+  /* 日記カードの改ページ制御 */
+  .diary-card { page-break-inside: avoid; margin-bottom: 20px; }
+}
+
 /* iPhoneのホームバー対応 */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);

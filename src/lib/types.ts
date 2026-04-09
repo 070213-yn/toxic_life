@@ -210,6 +210,18 @@ export type Reward = {
   profiles?: { display_name: string; avatar_emoji: string }
 }
 
+// 日記エントリー
+export type DiaryEntry = {
+  id: string
+  user_id: string
+  content: string
+  photo_path: string | null
+  entry_date: string
+  created_at: string
+  updated_at: string
+  profiles?: { display_name: string; avatar_emoji: string }
+}
+
 // アプリ設定
 export type Setting = {
   id: string
