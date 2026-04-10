@@ -58,7 +58,7 @@ export default function QuestsPage({ milestones, totalSavings, profiles, rewards
   }, [milestones])
 
   return (
-    <div className="px-2 pb-28 max-w-5xl mx-auto sm:px-6">
+    <div className="px-2 pb-28 max-w-5xl mx-auto sm:px-6 overflow-x-hidden">
       {/* --- 全体の進捗サマリー --- */}
       <div className="mb-6 p-3 sm:p-5 rounded-2xl bg-bg-card border border-primary-light/40 shadow-sm">
         {/* クリア数表示 */}

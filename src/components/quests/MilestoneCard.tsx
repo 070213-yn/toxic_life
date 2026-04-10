@@ -547,18 +547,18 @@ function SavingsProgress({
 
   return (
     <div className="mt-4 mb-2 p-3 rounded-xl bg-success/5 border border-success/15">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-success">
+      <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-success shrink-0">
             <path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z" />
             <path d="M2 9v1c0 1.1.9 2 2 2h1" />
             <path d="M16 11h.01" />
           </svg>
-          <span className="text-xs font-medium text-success">
+          <span className="text-xs font-medium text-success truncate">
             貯金 {formatYen(savingsGoal)} {achieved ? '達成!' : '目標'}
           </span>
         </div>
-        <span className="text-xs text-text-sub">
+        <span className="text-xs text-text-sub whitespace-nowrap">
           {formatYen(totalSavings)} / {formatYen(savingsGoal)}
         </span>
       </div>
