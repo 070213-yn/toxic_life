@@ -121,28 +121,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // 週の始まり（月曜日）に今週のタスクサマリーを送信
-  if (now.getDay() === 1) {
-    const allIncompleteTasks = milestones.flatMap((ms) =>
-      ((ms.tasks || []) as { title: string; is_completed: boolean; assignee: string }[])
-        .filter((t) => !t.is_completed)
-    )
-
-    if (allIncompleteTasks.length > 0) {
-      let weeklyMsg = `📋 **今週のやること** (未完了 ${allIncompleteTasks.length}件)\n`
-      const byAssignee: Record<string, string[]> = {}
-      allIncompleteTasks.forEach((t) => {
-        if (!byAssignee[t.assignee]) byAssignee[t.assignee] = []
-        byAssignee[t.assignee].push(t.title)
-      })
-      Object.entries(byAssignee).forEach(([assignee, tasks]) => {
-        weeklyMsg += `\n**${assignee}:**\n`
-        tasks.slice(0, 5).forEach((t) => { weeklyMsg += `　・${t}\n` })
-        if (tasks.length > 5) weeklyMsg += `　...他${tasks.length - 5}件\n`
-      })
-      messages.push(weeklyMsg)
-    }
-  }
 
   if (messages.length === 0) {
     return NextResponse.json({ ok: true, message: 'No notifications needed' })
