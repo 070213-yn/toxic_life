@@ -51,11 +51,15 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
   const [editTitle, setEditTitle] = useState(milestone.title)
   const [editDeadline, setEditDeadline] = useState(milestone.deadline ?? '')
   const [editReward, setEditReward] = useState(milestone.reward ?? '')
+  const [editSavingsGoal, setEditSavingsGoal] = useState(
+    milestone.savings_goal != null ? String(milestone.savings_goal) : ''
+  )
 
   // 現在の表示用の値
   const [currentTitle, setCurrentTitle] = useState(milestone.title)
   const [currentDeadline, setCurrentDeadline] = useState(milestone.deadline)
   const [currentReward, setCurrentReward] = useState(milestone.reward)
+  const [currentSavingsGoal, setCurrentSavingsGoal] = useState(milestone.savings_goal)
 
   // タスクの完了数・全数
   const totalTasks = tasks.length
@@ -78,8 +82,9 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     setEditTitle(currentTitle)
     setEditDeadline(currentDeadline ?? '')
     setEditReward(currentReward ?? '')
+    setEditSavingsGoal(currentSavingsGoal != null ? String(currentSavingsGoal) : '')
     setIsEditing(true)
-  }, [currentTitle, currentDeadline, currentReward])
+  }, [currentTitle, currentDeadline, currentReward, currentSavingsGoal])
 
   // 編集をキャンセル
   const cancelEditing = useCallback((e: React.MouseEvent) => {
@@ -92,28 +97,57 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     e.stopPropagation()
     setIsSaving(true)
 
+    // 新しい貯金目標額（空欄ならnull）
+    const newGoal = editSavingsGoal.trim() ? Number(editSavingsGoal) : null
+
     const { error } = await supabase
       .from('milestones')
       .update({
         title: editTitle.trim(),
         deadline: editDeadline || null,
         reward: editReward.trim() || null,
+        savings_goal: newGoal,
       })
       .eq('id', milestone.id)
 
-    setIsSaving(false)
-
     if (error) {
+      setIsSaving(false)
       alert('保存に失敗しました: ' + error.message)
       return
     }
 
+    // 合計目標金額の差分を、それ以降のチャプターにも反映する
+    // （このチャプターの目標を増減したら、後続の累計目標も同じだけずらす）
+    const oldGoalNum = currentSavingsGoal ?? 0
+    const newGoalNum = newGoal ?? 0
+    const diff = newGoalNum - oldGoalNum
+
+    if (diff !== 0 && currentSavingsGoal != null && newGoal != null) {
+      // sort_orderが後ろにあるチャプターを取得
+      const { data: laterMs } = await supabase
+        .from('milestones')
+        .select('id, savings_goal')
+        .gt('sort_order', milestone.sort_order)
+
+      // 目標額が設定済みのチャプターだけ差分を加算
+      for (const m of (laterMs ?? []) as { id: string; savings_goal: number | null }[]) {
+        if (m.savings_goal != null) {
+          await supabase
+            .from('milestones')
+            .update({ savings_goal: m.savings_goal + diff })
+            .eq('id', m.id)
+        }
+      }
+    }
+
+    setIsSaving(false)
     setCurrentTitle(editTitle.trim())
     setCurrentDeadline(editDeadline || null)
     setCurrentReward(editReward.trim() || null)
+    setCurrentSavingsGoal(newGoal)
     setIsEditing(false)
     router.refresh()
-  }, [editTitle, editDeadline, editReward, milestone.id, router])
+  }, [editTitle, editDeadline, editReward, editSavingsGoal, currentSavingsGoal, milestone.id, milestone.sort_order, router])
 
   // タスク更新コールバック
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
@@ -200,6 +234,20 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
                   onChange={(e) => setEditDeadline(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-xl border border-primary/30 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-sub mb-1">合計目標金額（このチャプター終了時まで）</label>
+                <input
+                  type="number"
+                  value={editSavingsGoal}
+                  onChange={(e) => setEditSavingsGoal(e.target.value)}
+                  placeholder="例: 500000"
+                  min={0}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-primary/30 bg-white/80 text-text focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+                <p className="mt-1 text-[10px] text-text-sub/60 leading-relaxed">
+                  変更すると、その差額が後のチャプターの目標額にも自動で加算されます
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-text-sub mb-1">ご褒美</label>
@@ -311,10 +359,10 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
         {(expanded || defaultExpanded) && !isEditing && (
           <div className="px-3 pb-3 sm:px-5 sm:pb-5 border-t border-text-sub/5">
             {/* 貯金目標プログレス */}
-            {milestone.savings_goal !== null && milestone.savings_goal > 0 && (
+            {currentSavingsGoal !== null && currentSavingsGoal > 0 && (
               <SavingsProgress
                 totalSavings={totalSavings}
-                savingsGoal={milestone.savings_goal}
+                savingsGoal={currentSavingsGoal}
               />
             )}
 
@@ -322,7 +370,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
             <TaskList
               tasks={tasks}
               totalSavings={totalSavings}
-              savingsGoal={milestone.savings_goal}
+              savingsGoal={currentSavingsGoal}
               onTaskUpdate={handleTaskUpdate}
               onTaskDelete={handleTaskDelete}
               onAllTasksComplete={handleMilestoneComplete}
