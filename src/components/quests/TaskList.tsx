@@ -363,10 +363,16 @@ function TaskItem({
       setEditing(false)
       return
     }
-    await supabase.from('tasks').update({ title: editTitle.trim() }).eq('id', task.id)
+    const oldTitle = task.title
+    const newTitle = editTitle.trim()
+    await supabase.from('tasks').update({ title: newTitle }).eq('id', task.id)
     setEditing(false)
+    // タスク名変更をDiscord通知
+    notifyDiscord(
+      `✏️ タスク名を変更しました（${task.assignee}）\n・「${oldTitle}」→「${newTitle}」\n[タスクを見る →](https://toxiclife.vercel.app/quests)`
+    )
     // ページ側でrefreshされるまでローカルで表示
-  }, [editTitle, task.id, task.title])
+  }, [editTitle, task.id, task.title, task.assignee])
 
   // 貯金連動タスクの自動判定
   const isAutoAchieved =

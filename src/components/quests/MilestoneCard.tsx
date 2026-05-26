@@ -140,6 +140,32 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
       }
     }
 
+    // 変更内容をまとめてDiscord通知
+    const fmtYen = (v: number | null) => (v != null ? `¥${v.toLocaleString('ja-JP')}` : '未設定')
+    const changes: string[] = []
+    if (editTitle.trim() !== currentTitle) {
+      changes.push(`・タイトル: 「${currentTitle}」→「${editTitle.trim()}」`)
+    }
+    if (newGoal !== currentSavingsGoal) {
+      changes.push(`・合計目標金額: ${fmtYen(currentSavingsGoal)} → ${fmtYen(newGoal)}`)
+      if (diff !== 0 && currentSavingsGoal != null && newGoal != null) {
+        const sign = diff > 0 ? '+' : '−'
+        changes.push(`　（後のチャプターも ${sign}¥${Math.abs(diff).toLocaleString('ja-JP')} 調整しました）`)
+      }
+    }
+    if ((editDeadline || null) !== currentDeadline) {
+      changes.push(`・期限: ${currentDeadline ?? '未設定'} → ${editDeadline || '未設定'}`)
+    }
+    if ((editReward.trim() || null) !== currentReward) {
+      changes.push(`・ご褒美: ${currentReward ?? '未設定'} → ${editReward.trim() || '未設定'}`)
+    }
+    if (changes.length > 0) {
+      const subtitle = milestone.subtitle ? `${milestone.subtitle} ` : ''
+      notifyDiscord(
+        `✏️ チャプター「${subtitle}${editTitle.trim()}」が更新されました\n${changes.join('\n')}\n[タスクを見る →](https://toxiclife.vercel.app/quests)`
+      )
+    }
+
     setIsSaving(false)
     setCurrentTitle(editTitle.trim())
     setCurrentDeadline(editDeadline || null)
@@ -147,7 +173,7 @@ export function MilestoneCard({ milestone, totalSavings, defaultExpanded, profil
     setCurrentSavingsGoal(newGoal)
     setIsEditing(false)
     router.refresh()
-  }, [editTitle, editDeadline, editReward, editSavingsGoal, currentSavingsGoal, milestone.id, milestone.sort_order, router])
+  }, [editTitle, editDeadline, editReward, editSavingsGoal, currentTitle, currentDeadline, currentReward, currentSavingsGoal, milestone.id, milestone.sort_order, milestone.subtitle, router])
 
   // タスク更新コールバック
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
